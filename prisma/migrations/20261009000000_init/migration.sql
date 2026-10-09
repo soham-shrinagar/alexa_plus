@@ -1,0 +1,12 @@
+CREATE TABLE "User" ("id" TEXT PRIMARY KEY, "externalUserId" TEXT NOT NULL UNIQUE, "createdAt" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE "UserPreference" ("id" TEXT PRIMARY KEY, "userId" TEXT NOT NULL REFERENCES "User"("id") ON DELETE CASCADE, "key" TEXT NOT NULL, "value" JSONB NOT NULL, "createdAt" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP, UNIQUE("userId", "key"));
+CREATE TABLE "CalendarEvent" ("id" TEXT PRIMARY KEY, "userId" TEXT NOT NULL REFERENCES "User"("id") ON DELETE CASCADE, "externalId" TEXT, "title" TEXT NOT NULL, "startTime" TIMESTAMPTZ NOT NULL, "endTime" TIMESTAMPTZ NOT NULL, "location" TEXT, "createdAt" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE "Task" ("id" TEXT PRIMARY KEY, "userId" TEXT NOT NULL REFERENCES "User"("id") ON DELETE CASCADE, "title" TEXT NOT NULL, "description" TEXT, "dueAt" TIMESTAMPTZ, "status" TEXT NOT NULL DEFAULT 'open', "createdAt" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE "Notification" ("id" TEXT PRIMARY KEY, "userId" TEXT NOT NULL REFERENCES "User"("id") ON DELETE CASCADE, "message" TEXT NOT NULL, "scheduledAt" TIMESTAMPTZ NOT NULL, "status" TEXT NOT NULL DEFAULT 'scheduled', "idempotencyKey" TEXT, "createdAt" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP, UNIQUE("userId", "idempotencyKey"));
+CREATE TABLE "ToolExecutionLog" ("id" TEXT PRIMARY KEY, "requestId" TEXT NOT NULL, "userId" TEXT, "toolName" TEXT NOT NULL, "status" TEXT NOT NULL, "latencyMs" INTEGER NOT NULL, "createdAt" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE "AuditLog" ("id" TEXT PRIMARY KEY, "requestId" TEXT NOT NULL, "userId" TEXT, "action" TEXT NOT NULL, "toolName" TEXT, "status" TEXT NOT NULL, "createdAt" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE INDEX "CalendarEvent_userId_startTime_idx" ON "CalendarEvent"("userId", "startTime");
+CREATE INDEX "Task_userId_dueAt_idx" ON "Task"("userId", "dueAt");
+CREATE INDEX "Notification_userId_scheduledAt_idx" ON "Notification"("userId", "scheduledAt");
+CREATE INDEX "ToolExecutionLog_requestId_idx" ON "ToolExecutionLog"("requestId");
+CREATE INDEX "AuditLog_userId_createdAt_idx" ON "AuditLog"("userId", "createdAt");
