@@ -3,6 +3,9 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "test": "npm --prefix apps/mcp-server test",
+    "check": "npm --prefix apps/mcp-server run check",
+    "test:neon": "npm --prefix apps/mcp-server run test:neon",
     "prisma:validate": "prisma validate --schema prisma/schema.prisma",
     "prisma:generate": "prisma generate --schema prisma/schema.prisma"
   },

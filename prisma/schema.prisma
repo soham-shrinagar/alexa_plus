@@ -28,6 +28,7 @@ model UserPreference {
   userId String
   key String
   value Json
+  source String @default("explicit")
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

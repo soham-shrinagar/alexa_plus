@@ -13,8 +13,9 @@ test("Neon Prisma repository persists records, preserves isolation, and survives
   const prisma = new PrismaClient({ log: [] });
   try {
     const repository = new PrismaRepository(prisma);
-    const stored = await repository.updatePreference(firstUser, "travelMode", "car");
+    const stored = await repository.updatePreference(firstUser, "travelMode", "car", "explicit");
     assert.equal(stored.value, "car");
+    assert.equal(stored.source, "explicit");
     assert.equal((await repository.getPreferences(firstUser)).length, 1);
     assert.equal((await repository.getPreferences(secondUser)).length, 0);
     const notification = await repository.createNotification(firstUser, { message: "Integration-test reminder", scheduledTime: "2030-01-01T10:00:00.000Z", idempotencyKey: `${prefix}-notification` });
