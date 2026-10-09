@@ -1,9 +1,204 @@
-generator client { provider = "prisma-client-js" }
-datasource db { provider = "postgresql"; url = env("DATABASE_URL") }
-model User { id String @id @default(cuid()) externalUserId String @unique preferences UserPreference[] calendarEvents CalendarEvent[] tasks Task[] notifications Notification[] createdAt DateTime @default(now()) updatedAt DateTime @updatedAt }
-model UserPreference { id String @id @default(cuid()) userId String key String value Json user User @relation(fields: [userId], references: [id], onDelete: Cascade) createdAt DateTime @default(now()) updatedAt DateTime @updatedAt @@unique([userId, key]) }
-model CalendarEvent { id String @id @default(cuid()) userId String externalId String? title String startTime DateTime endTime DateTime location String? user User @relation(fields: [userId], references: [id], onDelete: Cascade) createdAt DateTime @default(now()) updatedAt DateTime @updatedAt @@index([userId, startTime]) }
-model Task { id String @id @default(cuid()) userId String title String description String? dueAt DateTime? status String @default("open") user User @relation(fields: [userId], references: [id], onDelete: Cascade) createdAt DateTime @default(now()) updatedAt DateTime @updatedAt @@index([userId, dueAt]) }
-model Notification { id String @id @default(cuid()) userId String message String scheduledAt DateTime status String @default("scheduled") idempotencyKey String? user User @relation(fields: [userId], references: [id], onDelete: Cascade) createdAt DateTime @default(now()) @@unique([userId, idempotencyKey]) @@index([userId, scheduledAt]) }
-model ToolExecutionLog { id String @id @default(cuid()) requestId String userId String? toolName String status String latencyMs Int createdAt DateTime @default(now()) @@index([requestId]) }
-model AuditLog { id String @id @default(cuid()) requestId String userId String? action String toolName String? status String createdAt DateTime @default(now()) @@index([userId, createdAt]) }
+generator client {
+  provider = "prisma-client-js"
+  output   = "../apps/mcp-server/node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id String @id @default(cuid())
+  externalUserId String @unique
+  preferences UserPreference[]
+  calendarEvents CalendarEvent[]
+  tasks Task[]
+  notifications Notification[]
+  memories EpisodicMemory[]
+  workflows Workflow[]
+  approvals Approval[]
+  monitoredPlans MonitoredPlan[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model UserPreference {
+  id String @id @default(cuid())
+  userId String
+  key String
+  value Json
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([userId, key])
+}
+
+model CalendarEvent {
+  id String @id @default(cuid())
+  userId String
+  externalId String?
+  title String
+  startTime DateTime
+  endTime DateTime
+  location String?
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([userId, startTime])
+}
+
+model Task {
+  id String @id @default(cuid())
+  userId String
+  title String
+  description String?
+  dueAt DateTime?
+  status String @default("open")
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([userId, dueAt])
+}
+
+model Notification {
+  id String @id @default(cuid())
+  userId String
+  message String
+  scheduledAt DateTime
+  status String @default("scheduled")
+  idempotencyKey String?
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  @@unique([userId, idempotencyKey])
+  @@index([userId, scheduledAt])
+}
+
+model ToolExecutionLog {
+  id String @id @default(cuid())
+  requestId String
+  userId String?
+  toolName String
+  status String
+  latencyMs Int
+  createdAt DateTime @default(now())
+  @@index([requestId])
+}
+
+model AuditLog {
+  id String @id @default(cuid())
+  requestId String
+  userId String?
+  action String
+  toolName String?
+  status String
+  createdAt DateTime @default(now())
+  @@index([userId, createdAt])
+}
+
+model EpisodicMemory {
+  id String @id @default(cuid())
+  userId String
+  category String
+  summary String
+  referenceType String?
+  referenceId String?
+  source String
+  retentionUntil DateTime?
+  deletedAt DateTime?
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([userId, category, createdAt])
+}
+
+model Workflow {
+  id String @id @default(cuid())
+  userId String
+  type String
+  status String
+  currentStep String?
+  idempotencyKey String?
+  approvalStatus String @default("NOT_REQUIRED")
+  retryCount Int @default(0)
+  deadlineAt DateTime?
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  steps WorkflowStep[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([userId, idempotencyKey])
+  @@index([userId, status, createdAt])
+}
+
+model WorkflowStep {
+  id String @id @default(cuid())
+  workflowId String
+  stepKey String
+  status String
+  dependsOn Json
+  input Json?
+  result Json?
+  errorCode String?
+  retryCount Int @default(0)
+  startedAt DateTime?
+  completedAt DateTime?
+  workflow Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  @@unique([workflowId, stepKey])
+  @@index([workflowId, status])
+}
+
+model Approval {
+  id String @id @default(cuid())
+  userId String
+  actionType String
+  payloadHash String
+  status String @default("PENDING")
+  expiresAt DateTime
+  consumedAt DateTime?
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  @@index([userId, status, expiresAt])
+}
+
+model MonitoredPlan {
+  id String @id @default(cuid())
+  userId String
+  workflowId String?
+  eventId String?
+  origin String
+  destination String
+  baselineTravelMinutes Int
+  thresholdMinutes Int @default(10)
+  enabled Boolean @default(true)
+  quietHours Json?
+  lastNotificationFingerprint String?
+  nextCheckAt DateTime?
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([enabled, nextCheckAt])
+}
+
+model BackgroundJob {
+  id String @id @default(cuid())
+  type String
+  status String @default("PENDING")
+  payload Json
+  attempts Int @default(0)
+  maxAttempts Int @default(3)
+  runAt DateTime
+  lastErrorCode String?
+  lockedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([status, runAt])
+}
+
+model ProviderHealth {
+  provider String @id
+  state String @default("CLOSED")
+  consecutiveFailures Int @default(0)
+  openedAt DateTime?
+  lastFailureAt DateTime?
+  updatedAt DateTime @updatedAt
+}

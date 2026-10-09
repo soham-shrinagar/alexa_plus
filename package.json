@@ -1,0 +1,13 @@
+{
+  "name": "alexa-lifeops",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "prisma:validate": "prisma validate --schema prisma/schema.prisma",
+    "prisma:generate": "prisma generate --schema prisma/schema.prisma"
+  },
+  "devDependencies": {
+    "@prisma/client": "6.19.1",
+    "prisma": "6.19.1"
+  }
+}

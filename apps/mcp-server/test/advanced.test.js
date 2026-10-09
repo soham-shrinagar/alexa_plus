@@ -1,0 +1,21 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { executeGraph } from "../src/workflows/graphExecutor.js";
+import { LifeOpsService } from "../src/services/lifeOpsService.js";
+import { MemoryRepository, demoEvents } from "../src/repositories/memoryRepository.js";
+import { DemoTravelProvider, DemoWeatherProvider } from "../src/providers/demoProviders.js";
+import { CircuitBreaker } from "../src/resilience/circuitBreaker.js";
+import { ApprovalService } from "../src/services/approvalService.js";
+import { PrismaRepository } from "../src/repositories/prismaRepository.js";
+
+test("dependency graph runs independent steps concurrently and blocks failed descendants", async () => { const order = []; const result = await executeGraph({ steps: [{ id: "a", dependsOn: [], run: async () => { order.push("a"); return 1; } }, { id: "b", dependsOn: [], run: async () => { order.push("b"); return 2; } }, { id: "c", dependsOn: ["a", "b"], run: async () => { order.push("c"); return 3; } }] }); assert.equal(result.status, "VERIFIED"); assert.deepEqual(order.slice(-1), ["c"]); const stopped = await executeGraph({ steps: [{ id: "bad", dependsOn: [], run: async () => { throw new Error("nope"); } }, { id: "unsafe", dependsOn: ["bad"], run: async () => { throw new Error("must not run"); } }] }); assert.equal(stopped.results.unsafe.status, "SKIPPED"); });
+
+test("smart commute workflow verifies an idempotent reminder and retains user-isolated history", async () => { const repository = new MemoryRepository({ events: demoEvents }); const service = new LifeOpsService({ repository, travelProvider: new DemoTravelProvider(), weatherProvider: new DemoWeatherProvider() }); const outcome = await service.executeCommuteWorkflow("demo-user", { origin: "Home", scheduleReminder: true, idempotencyKey: "workflow-demo-001" }); assert.equal(outcome.status, "VERIFIED"); assert.equal(outcome.results.notification.value.verificationStatus, "VERIFIED"); const memories = await service.listMemories("demo-user"); assert.equal(memories.length, 1); assert.equal((await service.listMemories("other-user")).length, 0); });
+
+test("free-slot planning honors existing calendar events", async () => { const service = new LifeOpsService({ repository: new MemoryRepository({ events: demoEvents }), travelProvider: new DemoTravelProvider(), weatherProvider: new DemoWeatherProvider() }); const slots = await service.freeSlots("demo-user", { rangeStart: "2026-10-10T08:00:00.000Z", rangeEnd: "2026-10-10T18:00:00.000Z", durationMinutes: 120 }); assert.ok(slots.every((slot) => slot.endTime <= "2026-10-10T10:00:00.000Z" || slot.startTime >= "2026-10-10T11:00:00.000Z")); });
+
+test("approval hashes bind approval to one user and one action payload", async () => { const approvals = new ApprovalService(new MemoryRepository()); const approval = await approvals.request("demo-user", "high-impact-action", { amount: 10 }); await approvals.approve("demo-user", approval.id); await approvals.consume("demo-user", approval.id, "high-impact-action", { amount: 10 }); await assert.rejects(() => approvals.consume("demo-user", approval.id, "high-impact-action", { amount: 10 })); });
+
+test("circuit breaker stops repeated failing primary calls and labels fallback", async () => { const breaker = new CircuitBreaker({ failureThreshold: 2 }); const fallback = async () => ({ source: "fallback", isMock: true }); const fail = async () => { throw new Error("provider down"); }; assert.equal((await breaker.execute(fail, fallback)).fallbackUsed, true); assert.equal((await breaker.execute(fail, fallback)).fallbackUsed, true); assert.equal(breaker.state, "OPEN"); assert.equal((await breaker.execute(async () => ({ source: "primary" }), fallback)).fallbackReason, "circuit_open"); });
+
+test("database failures are returned as errors, never as a successful write", async () => { const unavailableDatabase = { user: { upsert: async () => { throw new Error("connection refused"); } } }; const repository = new PrismaRepository(unavailableDatabase); await assert.rejects(() => repository.updatePreference("test-user", "units", "metric"), (error) => error.code === "DATABASE_UNAVAILABLE"); });
