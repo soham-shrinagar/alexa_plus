@@ -45,10 +45,10 @@ Remove-Item Env:RUN_NEON_INTEGRATION
 - `apps/mcp-server/public`: same-origin web MCP client and demo experience.
 - `apps/mcp-server/test`: domain, service, protocol/security, and optional persistence tests.
 - `prisma`: additive database schema and migrations.
-- `overview.md`: complete product-to-submission guide.
 - `integration.md`: exact configuration and deployment checklist.
-- `docs/submission-checklist.md`: remaining owner tasks, deadlines, and honest demo boundaries.
-- `docs`: architecture, tool, testing, security, demo, and competition notes.
+- `docs`: public architecture, decisions, tool, testing, and security guides.
+
+Private planning notes, the local overview, progress log, and recording/submission notes are intentionally excluded from Git. The public setup and technical guides remain included so reviewers can reproduce the demo.
 
 ## Important demo boundary
 

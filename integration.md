@@ -2,6 +2,8 @@
 
 This file separates what already works locally from what requires your accounts or production choices.
 
+Current status: a real MCP server and Neon persistence, with a browser-simulated Alexa+ experience. There is no real Alexa/Echo connection. The bundled browser does not need an OAuth client; adding client credentials alone cannot complete production account linking. OAuth metadata, PKCE, and token checks are implemented, but production sign-in/consent and refresh-token issuance remain unfinished. A real Alexa+ connection would additionally require Amazon access and confirmed onboarding instructions; it is not enabled by adding environment variables. See [docs/security.md](docs/security.md) for security boundaries.
+
 ## A. Local demo: required now
 
 ### 1. Install and verify
@@ -151,7 +153,7 @@ Check:
 
 ## D. Alexa+/competition integration decision
 
-Use the competition’s real-MCP submission path. The repository already satisfies the technical shape: MCP `2025-11-25`, Streamable HTTP, source code, and a web client that demonstrates initialize/list/call. Do not claim official Alexa+ device execution.
+Use the competition’s simulated Alexa+ experience path unless a real Alexa+ integration is independently obtained and verified. The repository also implements a real MCP `2025-11-25` server over Streamable HTTP, with a web client demonstrating initialize/list/call; that protocol support does not itself establish an Amazon connection. Do not claim official Alexa+ device execution.
 
 In the written submission explain:
 
@@ -170,16 +172,16 @@ Before the first push:
 2. Confirm `.env` is not listed.
 3. Search for accidental credentials and connection strings.
 4. Run `npm test` from a clean install.
-5. Confirm all Markdown documents are included.
+5. Confirm README, integration instructions, and public technical docs are included; private planning and recording notes should remain excluded.
 6. Make the repository public only when ready.
 
 The [rules](https://amazonappdev2026.devpost.com/rules) allow a public repository with a detectable open-source license, or a private repository shared with the specified reviewers. A package.json license label is not a substitute for a root license file. Choose the license or private-access route before publishing.
 
-No GitHub push or repository mutation has been performed by this implementation.
+No GitHub push or remote repository changes have been performed. Private working notes are ignored and removed from the local Git index while staying on disk. This does not erase them from earlier commits; review history for secrets before any future push.
 
 ### Video
 
-Record at 1080p if possible. Keep it under three minutes. Show the connection indicator and MCP activity panel, not only slides. Follow `docs/demo-script.md`.
+Record at 1080p if possible. Keep it under three minutes. Show the connection indicator and MCP activity panel, not only slides. Demonstrate compile, initial conflicts, repair, the family's explicit decision, approval and activation, runtime adaptation, and rollback. Explain that the Alexa+ conversation and device effects are simulated while the MCP requests and verification engine are real.
 
 ### Devpost
 
@@ -221,4 +223,4 @@ Store the result in a secret manager. Do not paste it into a tracked Markdown fi
 - [ ] Verify every public link in an incognito window.
 - [ ] Submit before the live deadline.
 
-The authoritative consolidated checklist, exact current deadline, feedback prompts, and optional-vs-required distinctions are in [docs/submission-checklist.md](docs/submission-checklist.md).
+This public guide contains the reproducible setup and owner checklist. Local planning and submission notes are intentionally excluded from Git. Verify the current deadline, feedback requirements, and eligibility directly in the linked competition rules and FAQ before submitting.

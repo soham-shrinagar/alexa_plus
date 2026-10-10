@@ -20,10 +20,40 @@ coverage/
 npm-debug.log*
 yarn-debug.log*
 pnpm-debug.log*
+.nyc_output/
+test-results/
+playwright-report/
+.eslintcache
+
+# Private working notes (keep reproducible public documentation tracked)
+/overview.md
+/prompt.md
+/progress.md
+/docs/competition-fit.md
+/docs/demo-script.md
+/docs/submission-checklist.md
+/notes/
+/docs/local/
+
+# Local captures, scratch work, backups, and temporary files
+/screenshots/
+/recordings/
+/artifacts/
+/scratch/
+/tmp/
+/backups/
+*.tmp
+*.bak
+*.swp
+*.swo
 
 # Local databases and Prisma generated files
 *.db
 *.db-journal
+*.sqlite
+*.sqlite3
+*.dump
+*.backup
 prisma/generated/
 
 # Editor and operating-system files
