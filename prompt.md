@@ -48,6 +48,9 @@ The implementation must express these concepts even when plain JavaScript object
 - Writes: activation and rollback require explicit confirmation.
 - Persistence: memory for deterministic demos; Prisma/PostgreSQL for deployed state.
 - Migration safety: Rehearse schema changes are additive; old database tables are not dropped.
+- Atomicity: lifecycle, approval, evidence, and audit writes commit together; per-user locking prevents concurrent activation/version races.
+- Approved versions are immutable; unsafe runtime changes suspend simulated schedules and remain rollbackable.
+- Friday-only permissions must not weaken other weekdays; delay reports describe the current total, not repeated increments.
 - No claim that simulated devices are physically controlled.
 
 ## Demo acceptance criteria

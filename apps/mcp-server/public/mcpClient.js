@@ -30,6 +30,6 @@ export class McpBrowserClient {
     return message.result;
   }
 
-  async notify(method) { await fetch("/mcp", { method: "POST", headers: this.headers(true), body: JSON.stringify({ jsonrpc: "2.0", method }) }); }
+  async notify(method) { const response = await fetch("/mcp", { method: "POST", headers: this.headers(true), body: JSON.stringify({ jsonrpc: "2.0", method }) }); if (!response.ok) throw new Error(`MCP notification failed with HTTP ${response.status}`); }
   headers(includeSession) { return { authorization: `Bearer ${this.token}`, "content-type": "application/json", accept: "application/json, text/event-stream", "mcp-protocol-version": "2025-11-25", ...(includeSession && this.sessionId ? { "mcp-session-id": this.sessionId } : {}) }; }
 }

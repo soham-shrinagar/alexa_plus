@@ -52,7 +52,10 @@ Rules and submission fields can change. Treat these live pages as authoritative 
 - Device side effects are simulated.
 - The natural-language parser is bounded to the demo pattern.
 - One scenario fixture is polished.
-- Memory mode is the default demo mode.
+- A configured database URL selects Prisma; without one the demo uses memory.
+- Virtual schedules are simulated; no physical executor or clock scheduler runs.
 - Production identity and vendor device adapters are future work.
 
 These limitations do not weaken the central proof: the full safety lifecycle and MCP surface are implemented and demonstrable.
+
+See [submission-checklist.md](submission-checklist.md) for repository access/licensing, video, feedback, deadlines, and final owner checks.

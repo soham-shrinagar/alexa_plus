@@ -1,8 +1,15 @@
-import { overlaps, toClock } from "./time.js";
+import { toClock } from "./time.js";
 
 export function simulateRoutine(routine, context = routine.context) {
   const trace = routine.steps.slice().sort((a, b) => a.startMinute - b.startMinute).map((step) => ({ at: step.startTime, stepId: step.id, action: step.label, targetId: step.targetId, outcome: unavailable(step, context) ? "BLOCKED" : "WOULD_RUN" }));
-  const violations = routine.constraints.flatMap((constraint) => evaluators[constraint.type]?.(constraint, routine.steps, context) ?? []);
+  const violations = routine.constraints.flatMap((constraint) => evaluators[constraint.type]
+    ? evaluators[constraint.type](constraint, routine.steps, context)
+    : [violation({ ...constraint, severity: "critical" }, "UNSUPPORTED_CONSTRAINT", `Cannot verify constraint type ${constraint.type}.`, [])]);
+  for (const step of routine.steps) {
+    if (![step.startMinute, step.endMinute, step.durationMinutes].every(Number.isInteger) || step.startMinute < 0 || step.endMinute > 1440 || step.durationMinutes <= 0 || step.endMinute !== step.startMinute + step.durationMinutes) {
+      violations.push(violation({ id: "valid-timing", severity: "critical" }, "INVALID_TIMING", `${step.label} has invalid or cross-day timing.`, [step.id]));
+    }
+  }
   return {
     status: violations.some((item) => item.severity === "critical") ? "FAILED" : "PASSED",
     violations,
@@ -14,10 +21,12 @@ export function simulateRoutine(routine, context = routine.context) {
 const evaluators = {
   MAX_CONCURRENT_POWER(constraint, steps) {
     const powered = steps.filter((step) => step.powerWatts);
+    const boundaries = [...new Set(powered.flatMap((step) => [step.startMinute, step.endMinute]))].sort((a, b) => a - b);
     const violations = [];
-    for (let index = 0; index < powered.length; index += 1) for (let other = index + 1; other < powered.length; other += 1) {
-      const left = powered[index]; const right = powered[other]; const total = left.powerWatts + right.powerWatts;
-      if (overlaps(left, right) && total > constraint.maxWatts) violations.push(violation(constraint, "POWER_OVERLAP", `${left.label} and ${right.label} overlap at ${total}W, above ${constraint.maxWatts}W.`, [left.id, right.id], { totalWatts: total }));
+    for (const minute of boundaries) {
+      const active = powered.filter((step) => step.startMinute <= minute && step.endMinute > minute);
+      const total = active.reduce((sum, step) => sum + step.powerWatts, 0);
+      if (total > constraint.maxWatts) violations.push(violation(constraint, "POWER_OVERLAP", `${active.map((step) => step.label).join(" + ")} overlap at ${total}W, above ${constraint.maxWatts}W.`, active.map((step) => step.id), { totalWatts: total, atMinute: minute }));
     }
     return violations;
   },
@@ -28,13 +37,15 @@ const evaluators = {
     const effective = effectiveDeadline(constraint, context);
     const departure = steps.find((step) => step.departure);
     const findings = [];
+    if (!departure) findings.push(violation(constraint, "MISSING_DEPARTURE", "The routine has a departure deadline but no departure step.", []));
     if (departure && departure.startMinute > effective) findings.push(violation(constraint, "LATE_DEPARTURE", `Departure at ${departure.startTime} misses the effective ${toClock(effective)} deadline.`, [departure.id], { effectiveDeadlineMinute: effective }));
     const actualDeparture = Math.min(departure?.startMinute ?? effective, effective);
     for (const step of steps.filter((item) => item.requiredForDeparture && item.endMinute > actualDeparture)) findings.push(violation(constraint, "READINESS_MISSED", `${step.label} ends at ${step.endTime}, after the required ${toClock(actualDeparture)} departure.`, [step.id, departure?.id].filter(Boolean), { effectiveDeadlineMinute: actualDeparture }));
     return findings;
   },
-  EARLIEST_START(constraint, steps) {
-    return steps.filter((step) => step.targetId === constraint.targetId && step.startMinute < constraint.atMinute).map((step) => violation(constraint, "EARLY_START", `${step.label} starts at ${step.startTime}, before allowed time ${toClock(constraint.atMinute)}.`, [step.id]));
+  EARLIEST_START(constraint, steps, context) {
+    const earliest = constraint.exceptions?.[context.weekday] ?? constraint.atMinute;
+    return steps.filter((step) => step.targetId === constraint.targetId && step.startMinute < earliest).map((step) => violation(constraint, "EARLY_START", `${step.label} starts at ${step.startTime}, before allowed time ${toClock(earliest)}.`, [step.id]));
   },
   DEVICE_AVAILABLE(constraint, steps, context) {
     return steps.filter((step) => unavailable(step, context) && !step.optional).map((step) => violation(constraint, "CAPABILITY_UNAVAILABLE", `${step.capability} is unavailable for ${step.label}.`, [step.id]));

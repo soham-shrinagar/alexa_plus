@@ -8,7 +8,7 @@ export class OAuthService {
     const client = this.client(params.client_id); this.validateAuthorizationRequest(params, client);
     if (!this.config.demoMode || params.approved !== "true" || !params.demo_user) return { consentRequired: true };
     const code = crypto.randomBytes(32).toString("base64url");
-    this.codes.set(code, { clientId: client.id, redirectUri: params.redirect_uri, userId: params.demo_user, scope: normalizeScope(params.scope, USER_SCOPES), codeChallenge: params.code_challenge, expiresAt: Date.now() + 300_000 });
+    this.codes.set(code, { clientId: client.id, redirectUri: params.redirect_uri, userId: `oauth-demo-${crypto.randomUUID()}`, scope: normalizeScope(params.scope, USER_SCOPES), codeChallenge: params.code_challenge, expiresAt: Date.now() + 300_000 });
     const redirect = new URL(params.redirect_uri); redirect.searchParams.set("code", code); if (params.state) redirect.searchParams.set("state", params.state); return { redirect: redirect.toString() };
   }
   token(params, authorization) {

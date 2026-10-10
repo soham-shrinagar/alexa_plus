@@ -2,7 +2,19 @@ import { Prisma } from "@prisma/client";
 import { AppError, forbidden } from "../errors.js";
 
 export class PrismaRepository {
-  constructor(prisma) { this.prisma = prisma; }
+  constructor(prisma) { this.prisma = prisma; this.resolvedUsers = new Map(); }
+
+  async withUserLock(externalUserId, operation) {
+    const user = await this.user(externalUserId);
+    try {
+      return await this.prisma.$transaction(async (transaction) => {
+        await transaction.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${user.id} FOR UPDATE`;
+        const repository = new PrismaRepository(transaction);
+        repository.resolvedUsers.set(externalUserId, user);
+        return operation(repository);
+      }, { maxWait: 15_000, timeout: 60_000 });
+    } catch (error) { throw databaseError(error); }
+  }
 
   async createProposal(externalUserId, input) {
     const user = await this.user(externalUserId);
@@ -65,8 +77,8 @@ export class PrismaRepository {
   }
 
   async getActiveActivationForProposal(externalUserId, proposalId) {
-    const user = await this.user(externalUserId); const row = await this.prisma.rehearseActivation.findFirst({ where: { userId: user.id, proposalId, status: "ACTIVE" }, orderBy: { createdAt: "desc" } });
-    if (!row) throw forbidden(); return mapDates(row);
+    const user = await this.user(externalUserId); const row = await this.prisma.rehearseActivation.findFirst({ where: { userId: user.id, proposalId, status: { in: ["ACTIVE", "SUSPENDED"] } }, orderBy: { createdAt: "desc" } });
+    return mapDates(row);
   }
 
   async updateActivation(externalUserId, id, patch) {
@@ -87,7 +99,11 @@ export class PrismaRepository {
   }
 
   async assertProposal(userId, id) { const row = await this.prisma.rehearseProposal.findFirst({ where: { id, userId }, select: { id: true } }); if (!row) throw forbidden(); }
-  async user(externalUserId) { try { return await retryConnection(() => this.prisma.user.upsert({ where: { externalUserId }, create: { externalUserId }, update: {} })); } catch (error) { throw databaseError(error); } }
+  async user(externalUserId) {
+    if (this.resolvedUsers.has(externalUserId)) return this.resolvedUsers.get(externalUserId);
+    try { return await retryConnection(() => this.prisma.user.upsert({ where: { externalUserId }, create: { externalUserId }, update: {} })); }
+    catch (error) { throw databaseError(error); }
+  }
 }
 
 const date = (value) => value ? new Date(value) : null;

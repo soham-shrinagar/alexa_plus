@@ -8,6 +8,20 @@ export class MemoryRepository {
     this.activations = [];
     this.approvals = [];
     this.auditEvents = [];
+    this.mutationQueue = Promise.resolve();
+  }
+
+  async withUserLock(_userId, operation) {
+    // Match PostgreSQL transaction behavior for tests and concurrent demo calls.
+    const previous = this.mutationQueue;
+    let release;
+    this.mutationQueue = new Promise((resolve) => { release = resolve; });
+    await previous;
+    const collections = ["proposals", "simulations", "activations", "approvals", "auditEvents"];
+    const snapshot = Object.fromEntries(collections.map((key) => [key, structuredClone(this[key])]));
+    try { return await operation(this); }
+    catch (error) { for (const key of collections) this[key] = snapshot[key]; throw error; }
+    finally { release(); }
   }
 
   async createProposal(userId, input) {
@@ -66,9 +80,8 @@ export class MemoryRepository {
   }
 
   async getActiveActivationForProposal(userId, proposalId) {
-    const record = this.activations.find((item) => item.userId === userId && item.proposalId === proposalId && item.status === "ACTIVE");
-    if (!record) throw forbidden();
-    return structuredClone(record);
+    const record = this.activations.find((item) => item.userId === userId && item.proposalId === proposalId && ["ACTIVE", "SUSPENDED"].includes(item.status));
+    return record ? structuredClone(record) : null;
   }
 
   async updateActivation(userId, id, patch) {

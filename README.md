@@ -6,30 +6,34 @@ The included “rainy school morning” is a polished demo fixture, not the prod
 
 ## Run locally
 
-Requirements: Node.js 20+ and npm.
+Requirements: Node.js 22.9+ and npm. Run these commands from your checkout root.
 
 ```powershell
-cd C:\Users\shrin\OneDrive\Desktop\alexa_plus
-npm install
-npm --prefix apps/mcp-server install
+npm ci
+npm --prefix apps/mcp-server ci
+npm run prisma:generate
 npm start --prefix apps/mcp-server
 ```
 
 Open [http://localhost:3000](http://localhost:3000). The web experience obtains a short-lived demo token and makes real MCP `initialize`, `tools/list`, and `tools/call` requests to `/mcp` using protocol version `2025-11-25`.
 
+The server loads `apps/mcp-server/.env`. A configured `DATABASE_URL` automatically selects Prisma/Neon unless `REPOSITORY_MODE=memory` is explicit. Without a database URL, the local demo uses memory. The configured Neon database was additively migrated on 2026-10-11; existing LifeOps tables were preserved. See [integration.md](integration.md) for a new database or deployment.
+
 ## Verify
 
 ```powershell
 npm test
+npm run check
 npm run prisma:validate
-npm run prisma:generate
+npm run prisma:status
 ```
 
-The opt-in database test must only target an isolated disposable database:
+The opt-in database test writes synthetic users and deletes only their exact IDs in cleanup. Use an isolated Neon branch for future test runs:
 
 ```powershell
 $env:RUN_NEON_INTEGRATION="true"
 npm run test:neon
+Remove-Item Env:RUN_NEON_INTEGRATION
 ```
 
 ## Project map
@@ -43,8 +47,9 @@ npm run test:neon
 - `prisma`: additive database schema and migrations.
 - `overview.md`: complete product-to-submission guide.
 - `integration.md`: exact configuration and deployment checklist.
+- `docs/submission-checklist.md`: remaining owner tasks, deadlines, and honest demo boundaries.
 - `docs`: architecture, tool, testing, security, demo, and competition notes.
 
 ## Important demo boundary
 
-Device side effects are intentionally simulated. That is honest, safer, and consistent with the competition’s permitted simulated Alexa+ experience. The MCP server, OAuth surface, approval binding, state machine, runtime adaptation, browser MCP client, and deterministic verification are real.
+Device side effects and virtual device schedules are intentionally simulated; there is no physical device executor or clock-driven scheduler. The MCP server, OAuth surface, approval binding, state machine, runtime adaptation, browser MCP client, and deterministic verification are real. The rule parser and revision support are bounded to the included scenario, not general AI reasoning. Strict production identity-provider login is future work.

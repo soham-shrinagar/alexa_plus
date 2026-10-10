@@ -8,11 +8,12 @@ This file separates what already works locally from what requires your accounts 
 
 ```powershell
 cd C:\Users\shrin\OneDrive\Desktop\alexa_plus
-npm install
-npm --prefix apps/mcp-server install
-npm test
-npm run prisma:validate
+npm ci
+npm --prefix apps/mcp-server ci
 npm run prisma:generate
+npm test
+npm run check
+npm run prisma:validate
 ```
 
 Reason: this proves the deterministic engine, service lifecycle, MCP transport, security checks, and generated Prisma client all agree.
@@ -28,12 +29,12 @@ npm start --prefix apps/mcp-server
 The default configuration uses:
 
 - `DEMO_MODE=true`;
-- an in-memory repository;
+- Prisma when `DATABASE_URL` is configured, otherwise memory (or memory when explicitly selected);
 - a process-local JWT secret;
 - simulated device effects;
 - `http://localhost:3000`.
 
-Open `http://localhost:3000`. The browser calls `POST /demo/session`, receives a 30-minute token, initializes `/mcp`, lists tools, and uses `tools/call` for every product action.
+Open `http://localhost:3000`. The browser calls `POST /demo/session`, receives a 30-minute token for a fresh synthetic identity, initializes `/mcp`, lists tools, and uses `tools/call` for every product action. It does not implement returning-user login or restore old browser history automatically.
 
 ### 3. Walk the demo manually
 
@@ -51,7 +52,9 @@ Reason: manual pacing makes it easy to explain why the system pauses instead of 
 
 ## B. PostgreSQL/Neon: optional persistence
 
-The public demo does not require a database. Use memory mode for the most deterministic recording. Use Prisma only if you need persistence across server restarts.
+Your configured Neon database has already been migrated and checked on 2026-10-11. No new database/account is needed for this checkout. Existing LifeOps tables were preserved, matching legacy migrations were baselined, and the additive Rehearse migration was applied. Migration status is current and schema drift is zero.
+
+The demo does not require a database; `REPOSITORY_MODE=memory` is an explicit fallback for offline recordings. The following steps describe setting up another database, not unfinished work on your existing Neon database.
 
 ### 1. Create an isolated database branch
 
@@ -72,16 +75,17 @@ AUTH_REQUIRED=true
 JWT_SECRET=a-long-random-value
 ```
 
-Reason: `REPOSITORY_MODE=prisma` selects persistence; the database URL remains secret; a stable JWT secret prevents tokens from becoming invalid after restart.
+Reason: a database URL selects persistence automatically unless memory is explicit; specifying Prisma makes intent clear. The URL remains secret; a stable JWT secret prevents tokens from becoming invalid after restart.
 
 ### 3. Apply the additive migration
 
 ```powershell
 npm run prisma:migrate
 npm run prisma:generate
+npm run prisma:status
 ```
 
-The migration adds only Rehearse tables. It intentionally does not drop old LifeOps tables. Review `prisma/migrations/20261010000000_rehearse_domain/migration.sql` before applying.
+The Rehearse migration adds only its four tables and does not drop old LifeOps tables. A completely empty database applies all four migrations. For an already-populated legacy database without migration history, inspect it and baseline only matching migrations; do not blindly replay table-creation SQL or mark unrelated migrations as applied. Review `prisma/migrations/20261010000000_rehearse_domain/migration.sql` first.
 
 ### 4. Run the isolated persistence test
 
@@ -91,17 +95,17 @@ npm run test:neon
 Remove-Item Env:RUN_NEON_INTEGRATION
 ```
 
-The test creates uniquely prefixed users, confirms ownership isolation and reconnect persistence, then cleans up those users. Still use only a disposable branch.
+The test creates two random synthetic users, exercises the entire real MCP workflow and concurrent activation, confirms ownership and reconnect persistence, then removes those exact users and cascaded test records. Future runs should use an isolated branch. It was run successfully against your configured database under your migration/review request.
 
 ## C. Public HTTPS deployment: optional
 
-The current competition FAQ says hosting is optional; a public repository and video can be sufficient. Deploy only if a live URL improves your submission and you can keep it reliable.
+The [competition FAQ](https://amazonappdev2026.devpost.com/details/faqs) says hosting is optional; accessible source and a video can suffice. Deploy only if a live URL improves your submission and you can keep it reliable.
 
 ### 1. Choose a Node-compatible host
 
 The host must support:
 
-- Node.js 20+;
+- Node.js 22.9+;
 - long-running HTTP requests;
 - environment secrets;
 - HTTPS;
@@ -169,6 +173,8 @@ Before the first push:
 5. Confirm all Markdown documents are included.
 6. Make the repository public only when ready.
 
+The [rules](https://amazonappdev2026.devpost.com/rules) allow a public repository with a detectable open-source license, or a private repository shared with the specified reviewers. A package.json license label is not a substitute for a root license file. Choose the license or private-access route before publishing.
+
 No GitHub push or repository mutation has been performed by this implementation.
 
 ### Video
@@ -180,7 +186,7 @@ Record at 1080p if possible. Keep it under three minutes. Show the connection in
 You must provide:
 
 - final project title and short description;
-- public source repository URL;
+- accessible source repository URL (public with license, or private with required reviewer access);
 - public YouTube/Vimeo video URL;
 - team/member eligibility details;
 - technologies and product feedback;
@@ -209,8 +215,10 @@ Store the result in a secret manager. Do not paste it into a tracked Markdown fi
 - [ ] If deploying, configure secrets and a disposable database branch first.
 - [ ] Run all tests from a clean clone.
 - [ ] Inspect repository for secrets.
-- [ ] Push to a public GitHub repository.
+- [ ] Choose a license and publish the repository, or arrange the allowed private reviewer access.
 - [ ] Record and publish the under-three-minute video.
 - [ ] Complete Devpost fields and authentic product feedback.
 - [ ] Verify every public link in an incognito window.
 - [ ] Submit before the live deadline.
+
+The authoritative consolidated checklist, exact current deadline, feedback prompts, and optional-vs-required distinctions are in [docs/submission-checklist.md](docs/submission-checklist.md).

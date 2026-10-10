@@ -2,7 +2,8 @@ import * as z from "zod";
 import { AppError } from "../errors.js";
 
 const scenarioId = z.string().min(1).max(80).default("school-morning");
-const id = z.string().uuid();
+// Memory uses UUIDs; Prisma's existing tables use CUIDs.
+const id = z.string().min(8).max(128).regex(/^[a-zA-Z0-9_-]+$/);
 const resultText = (value) => ({ type: "text", text: JSON.stringify(value) });
 
 export function registerTools(server, { service, telemetry }) {

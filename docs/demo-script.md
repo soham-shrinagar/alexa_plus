@@ -63,4 +63,6 @@ Click Rollback.
 - Keep the browser connection indicator and MCP activity visible.
 - Avoid scrolling through source during the main story.
 - Include repository/architecture proof only as a brief final cut if time remains.
-- Publish as public/unlisted only if the live submission permits it; verify the URL in a signed-out window.
+- Publish publicly on YouTube/Vimeo per the [current rules](https://amazonappdev2026.devpost.com/rules); verify playback in a signed-out window.
+- Use only synthetic data and your own or authorized media. Describe devices as simulated and parsing as bounded.
+- If Neon response latency slows recording, use explicit memory mode or trim pauses without presenting edited speed as a performance benchmark.

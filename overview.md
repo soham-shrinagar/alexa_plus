@@ -92,7 +92,7 @@ The user says:
 
 > On Fridays, Maya can wake at 6:50, but keep everything else unchanged.
 
-Rehearse changes only the Maya earliest-start constraint and her preparation step. The new version passes all constraints.
+Rehearse adds a Friday-only exception to Maya's earliest-start constraint and updates her preparation step. Other weekdays keep the normal boundary. The fixture's current weekday is Friday, and this new version passes all constraints.
 
 ### Approval and runtime
 
@@ -150,6 +150,8 @@ Pure modules in `apps/mcp-server/src/domain` perform parsing, compilation, model
 ### Service layer
 
 `RehearseService` owns lifecycle policy. It version-controls proposals, refuses unverified activation, binds approval payloads, captures snapshots, persists runtime changes, and emits audit events.
+
+Mutations are transactional and serialized per user. Concurrent activation cannot consume one approval twice. Approved versions are immutable; unsafe runtime adaptations suspend the virtual schedule until recovery or rollback.
 
 ### MCP layer
 
@@ -223,26 +225,30 @@ The idea addresses the judging criteria:
 cd C:\Users\shrin\OneDrive\Desktop\alexa_plus
 npm install
 npm --prefix apps/mcp-server install
+npm run prisma:generate
 npm test
+npm run check
 npm run prisma:validate
 npm start --prefix apps/mcp-server
 ```
 
 Open `http://localhost:3000` and click **Run the guided rehearsal**.
 
+Use Node.js 22.9+. The server and Prisma command wrapper load `apps/mcp-server/.env`. Your configured Neon database is already migrated and selects Prisma automatically; specify `REPOSITORY_MODE=memory` only for an offline fallback. See [progress.md](progress.md) for verified results and review corrections.
+
 ## 13. What remains for the owner
 
 These tasks require your accounts, final choices, or real-world evidence:
 
 1. Run the demo locally and decide whether wording/visual pacing matches your speaking style.
-2. Create or choose the public GitHub repository. Review secrets with `git status` and a secret scanner before pushing. No push has been performed.
+2. Choose a GitHub access route: public with a detectable open-source license, or private with required reviewer access. Review secrets and commit history before pushing. No push has been performed.
 3. Record a public YouTube/Vimeo demo under three minutes using `docs/demo-script.md`.
-4. Create the Devpost submission, complete team/profile fields, provide the public repository and video URLs, and write the final product-feedback section from your genuine experience.
+4. Create the Devpost submission, complete team/profile fields, provide accessible repository and public video URLs, and write product feedback from your genuine experience.
 5. Decide whether to deploy. The FAQ permits local code plus video, so deployment is optional. If deploying, complete every step in `integration.md`.
-6. If enabling persistent PostgreSQL, create an isolated branch/database, apply the additive migration there first, and run the opt-in integration test before touching production.
-7. Configure a stable `JWT_SECRET`, final `PUBLIC_URL`, allowed origins, and OAuth clients through the deployment secret manager.
+6. No additional Neon setup is needed now: the existing database was additively migrated and passed the full live integration test. Use an isolated branch for future migration experiments.
+7. If deploying, configure a stable `JWT_SECRET`, final `PUBLIC_URL`, origins, and OAuth clients in the secret manager; a strict production browser login still needs implementation.
 8. Keep any optional friction log authentic and dated; it can earn bonus consideration but must reflect actual work.
 
 ## 14. Definition of submission-ready
 
-The repository is technically submission-ready when tests pass from a clean clone, the video clearly shows real MCP traffic and the full lifecycle, the README’s claims match the demo, no secret is committed, the repository is public, all submission links work without login, and the Devpost entry is submitted before the deadline shown on the live rules page.
+Submission readiness requires reproducible setup, a functioning video, honest claims, no committed secrets, licensed public source or authorized private reviewer access, and a completed Devpost entry before the deadline. Passing local tests alone is not the final submission. Follow [the complete owner checklist](docs/submission-checklist.md).

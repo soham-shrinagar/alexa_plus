@@ -41,3 +41,15 @@ Reason: the workspace may point at an existing database. Dropping old tables dur
 Decision: use semantic HTML, CSS, and browser ES modules.
 
 Reason: zero frontend build step reduces deployment risk and keeps attention on the real MCP interaction. The client remains modular through a separate MCP transport class.
+
+## ADR-008: transactional lifecycle and opaque identifiers
+
+Decision: commit each lifecycle mutation and its approval/evidence/audit records atomically under a per-user lock; treat IDs as opaque strings.
+
+Reason: concurrent activation must consume one approval once, persistence failure must permit safe retry, and Prisma CUIDs must work through the same MCP surface as memory UUIDs.
+
+## ADR-009: bounded interpretation and virtual execution
+
+Decision: expose the supported rule grammar honestly, use scenario action templates, and represent activation as virtual scheduled device states.
+
+Reason: generic safety architecture is valuable without claiming universal natural-language inference or physical control. Unsafe adaptations suspend those schedules; rollback restores the virtual snapshot. A real scheduler and vendor adapter require separately authorized implementation.

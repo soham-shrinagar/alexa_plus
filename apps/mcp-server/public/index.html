@@ -29,19 +29,24 @@
         <label for="goal">Household goal</label>
         <textarea id="goal" rows="7">Make our school mornings run themselves. We need to leave by 7:45. Don’t wake the baby before 7, don’t run the kettle and water heater together, and leave 15 minutes earlier when it rains.</textarea>
         <div class="actions">
-          <button id="guided" class="primary">Run the guided rehearsal <span>→</span></button>
+          <button id="guided" class="primary" disabled>Run the guided rehearsal <span>→</span></button>
           <button id="reset" class="secondary">Reset</button>
         </div>
         <p id="status" class="status" role="status">Ready to compile a routine.</p>
 
         <div class="stepper" id="stepper">
-          <button data-action="compile"><b>1</b><span>Compile<small>Build a minimal model</small></span></button>
+          <button data-action="compile" disabled><b>1</b><span>Compile<small>Build a minimal model</small></span></button>
           <button data-action="simulate" disabled><b>2</b><span>Simulate<small>Expose conflicts</small></span></button>
           <button data-action="repair" disabled><b>3</b><span>Repair<small>Resolve safe changes</small></span></button>
           <button data-action="revise" disabled><b>4</b><span>Revise<small>Confirm one exception</small></span></button>
           <button data-action="approve" disabled><b>5</b><span>Approve<small>Bind the exact version</small></span></button>
           <button data-action="disrupt" disabled><b>6</b><span>Adapt<small>Handle live disruption</small></span></button>
           <button data-action="rollback" disabled><b>7</b><span>Rollback<small>Restore the snapshot</small></span></button>
+        </div>
+        <div class="revision-input">
+          <label for="revision">Your routine revision</label>
+          <textarea id="revision" rows="3">On Fridays, Maya can wake at 6:50, but keep everything else unchanged.</textarea>
+          <p class="status">This demo understands a Maya start-time exception. Friday exceptions apply only on Friday.</p>
         </div>
       </aside>
 
