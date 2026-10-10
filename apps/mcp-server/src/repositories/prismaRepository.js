@@ -4,41 +4,95 @@ import { AppError, forbidden } from "../errors.js";
 export class PrismaRepository {
   constructor(prisma) { this.prisma = prisma; }
 
-  async getEvents(externalUserId, range = {}) { const user = await this.user(externalUserId); return this.prisma.calendarEvent.findMany({ where: { userId: user.id, ...(range.startTime ? { endTime: { gte: date(range.startTime) } } : {}), ...(range.endTime ? { startTime: { lte: date(range.endTime) } } : {}) }, orderBy: { startTime: "asc" } }).then((rows) => rows.map(event)); }
-  async createEvent(externalUserId, input) { const user = await this.user(externalUserId); return event(await this.prisma.calendarEvent.create({ data: { userId: user.id, title: input.title, startTime: date(input.startTime), endTime: date(input.endTime), location: input.location ?? null, externalId: input.externalId ?? null } })); }
-  async createNotification(externalUserId, input) { const user = await this.user(externalUserId); try { const record = await this.prisma.$transaction(async (tx) => { let notification; if (input.idempotencyKey) notification = await tx.notification.upsert({ where: { userId_idempotencyKey: { userId: user.id, idempotencyKey: input.idempotencyKey } }, create: { userId: user.id, message: input.message, scheduledAt: date(input.scheduledTime), idempotencyKey: input.idempotencyKey, status: "SUBMITTED" }, update: {} }); else notification = await tx.notification.create({ data: { userId: user.id, message: input.message, scheduledAt: date(input.scheduledTime), status: "SUBMITTED" } }); if (notification.status === "SUBMITTED") notification = await tx.notification.update({ where: { id: notification.id }, data: { status: "CONFIRMED" } }); return notification; }); return notification(record); } catch (error) { throw databaseError(error); } }
-  async getNotification(externalUserId, id) { const user = await this.user(externalUserId); const row = await this.prisma.notification.findFirst({ where: { id, userId: user.id } }); if (!row) throw forbidden(); return notification(row); }
-  async getPreferences(externalUserId) { const user = await this.user(externalUserId); return this.prisma.userPreference.findMany({ where: { userId: user.id }, orderBy: { key: "asc" } }).then((rows) => rows.map(preference)); }
-  async updatePreference(externalUserId, key, value, source = "explicit") { const user = await this.user(externalUserId); return preference(await this.prisma.userPreference.upsert({ where: { userId_key: { userId: user.id, key } }, create: { userId: user.id, key, value: json(value), source }, update: { value: json(value), source } })); }
-  async listMemories(externalUserId) { const user = await this.user(externalUserId); return this.prisma.episodicMemory.findMany({ where: { userId: user.id, deletedAt: null }, orderBy: { createdAt: "desc" } }).then((rows) => rows.map(memory)); }
-  async searchMemories(externalUserId, query, limit = 20) { const user = await this.user(externalUserId); return this.prisma.episodicMemory.findMany({ where: { userId: user.id, deletedAt: null, OR: [{ summary: { contains: query, mode: "insensitive" } }, { category: { contains: query, mode: "insensitive" } }, { referenceType: { contains: query, mode: "insensitive" } }, { referenceId: { contains: query, mode: "insensitive" } }] }, orderBy: { createdAt: "desc" }, take: limit }).then((rows) => rows.map(memory)); }
-  async addMemory(externalUserId, input) { const user = await this.user(externalUserId); return memory(await this.prisma.episodicMemory.create({ data: { userId: user.id, category: input.category, summary: input.summary, referenceType: input.referenceType ?? null, referenceId: input.referenceId ?? null, source: input.source, retentionUntil: optionalDate(input.retentionUntil) } })); }
-  async deleteMemory(externalUserId, id) { const user = await this.user(externalUserId); const result = await this.prisma.episodicMemory.updateMany({ where: { id, userId: user.id, deletedAt: null }, data: { deletedAt: new Date() } }); if (!result.count) throw forbidden(); return this.prisma.episodicMemory.findUnique({ where: { id } }).then(memory); }
-  async createWorkflow(externalUserId, input) { const user = await this.user(externalUserId); try { if (input.idempotencyKey) { const prior = await this.prisma.workflow.findFirst({ where: { userId: user.id, idempotencyKey: input.idempotencyKey }, include: { steps: true } }); if (prior) return workflow(prior); } return workflow(await this.prisma.workflow.create({ data: { userId: user.id, type: input.type, status: input.status ?? "PENDING", idempotencyKey: input.idempotencyKey ?? null, approvalStatus: input.approvalStatus ?? "NOT_REQUIRED", retryCount: input.retryCount ?? 0, deadlineAt: optionalDate(input.deadlineAt) }, include: { steps: true } })); } catch (error) { throw databaseError(error); } }
-  async updateWorkflow(externalUserId, id, patch) { const user = await this.user(externalUserId); try { return workflow(await this.prisma.$transaction(async (tx) => { const existing = await tx.workflow.findFirst({ where: { id, userId: user.id } }); if (!existing) throw forbidden(); const { steps, ...fields } = patch; await tx.workflow.update({ where: { id }, data: { ...workflowFields(fields), currentStep: fields.currentStep === undefined ? undefined : fields.currentStep ?? null } }); if (steps) for (const [stepKey, step] of Object.entries(steps)) await tx.workflowStep.upsert({ where: { workflowId_stepKey: { workflowId: id, stepKey } }, create: { workflowId: id, stepKey, status: step.status, dependsOn: json(step.dependsOn ?? []), result: step.value === undefined ? undefined : json(step.value), errorCode: step.errorCode ?? null, startedAt: step.status === "RUNNING" ? new Date() : null, completedAt: ["SUCCEEDED", "FAILED", "SKIPPED"].includes(step.status) ? new Date() : null }, update: { status: step.status, result: step.value === undefined ? undefined : json(step.value), errorCode: step.errorCode ?? null, completedAt: ["SUCCEEDED", "FAILED", "SKIPPED"].includes(step.status) ? new Date() : undefined } }); return tx.workflow.findUnique({ where: { id }, include: { steps: true } }); })); } catch (error) { throw databaseError(error); } }
-  async getWorkflow(externalUserId, id) { const user = await this.user(externalUserId); const row = await this.prisma.workflow.findFirst({ where: { id, userId: user.id }, include: { steps: true } }); if (!row) throw forbidden(); return workflow(row); }
-  async createApproval(externalUserId, input) { const user = await this.user(externalUserId); return approval(await this.prisma.approval.create({ data: { userId: user.id, actionType: input.actionType, payloadHash: input.payloadHash, status: input.status ?? "PENDING", expiresAt: date(input.expiresAt) } })); }
-  async getApproval(externalUserId, id) { const user = await this.user(externalUserId); const row = await this.prisma.approval.findFirst({ where: { id, userId: user.id } }); if (!row) throw forbidden(); return approval(row); }
-  async updateApproval(externalUserId, id, patch) { const user = await this.user(externalUserId); const result = await this.prisma.approval.updateMany({ where: { id, userId: user.id }, data: { status: patch.status, consumedAt: patch.consumedAt === undefined ? undefined : optionalDate(patch.consumedAt) } }); if (!result.count) throw forbidden(); return this.getApproval(externalUserId, id); }
-  async createMonitoredPlan(externalUserId, input) { const user = await this.user(externalUserId); return monitoredPlan(await this.prisma.monitoredPlan.create({ data: { userId: user.id, workflowId: input.workflowId ?? null, eventId: input.eventId ?? null, origin: input.origin, destination: input.destination, baselineTravelMinutes: input.baselineTravelMinutes, thresholdMinutes: input.thresholdMinutes ?? 10, enabled: input.enabled ?? true, quietHours: input.quietHours === undefined ? undefined : json(input.quietHours), nextCheckAt: optionalDate(input.nextCheckAt) } })); }
-  async getMonitoredPlan(externalUserId, id) { const user = await this.user(externalUserId); const row = await this.prisma.monitoredPlan.findFirst({ where: { id, userId: user.id } }); if (!row) throw forbidden(); return monitoredPlan(row); }
-  async updateMonitoredPlan(externalUserId, id, patch) { const user = await this.user(externalUserId); const result = await this.prisma.monitoredPlan.updateMany({ where: { id, userId: user.id }, data: { ...monitorFields(patch) } }); if (!result.count) throw forbidden(); return this.getMonitoredPlan(externalUserId, id); }
+  async createProposal(externalUserId, input) {
+    const user = await this.user(externalUserId);
+    return mapDates(await this.prisma.rehearseProposal.create({ data: { userId: user.id, scenarioId: input.scenarioId, goal: input.goal, status: input.status ?? "DRAFT", version: input.version ?? 1, routine: json(input.routine), microTwin: json(input.microTwin), context: json(input.context) } }));
+  }
+
+  async getProposal(externalUserId, id) {
+    const user = await this.user(externalUserId); const row = await this.prisma.rehearseProposal.findFirst({ where: { id, userId: user.id } });
+    if (!row) throw forbidden(); return mapDates(row);
+  }
+
+  async updateProposal(externalUserId, id, patch) {
+    const user = await this.user(externalUserId);
+    const result = await this.prisma.rehearseProposal.updateMany({ where: { id, userId: user.id }, data: { status: patch.status, version: patch.version, routine: patch.routine === undefined ? undefined : json(patch.routine), microTwin: patch.microTwin === undefined ? undefined : json(patch.microTwin), context: patch.context === undefined ? undefined : json(patch.context) } });
+    if (!result.count) throw forbidden(); return this.getProposal(externalUserId, id);
+  }
+
+  async createSimulation(externalUserId, input) {
+    const user = await this.user(externalUserId);
+    await this.assertProposal(user.id, input.proposalId);
+    return mapDates(await this.prisma.rehearseSimulation.create({ data: { userId: user.id, proposalId: input.proposalId, proposalVersion: input.proposalVersion, status: input.status, violations: json(input.violations), trace: json(input.trace), summary: json(input.summary) } }));
+  }
+
+  async createApproval(externalUserId, input) {
+    const user = await this.user(externalUserId);
+    return mapDates(await this.prisma.approval.create({ data: { userId: user.id, actionType: input.actionType, payloadHash: input.payloadHash, status: input.status ?? "PENDING", expiresAt: date(input.expiresAt) } }));
+  }
+
+  async getApproval(externalUserId, id) {
+    const user = await this.user(externalUserId); const row = await this.prisma.approval.findFirst({ where: { id, userId: user.id } });
+    if (!row) throw forbidden(); return mapDates(row);
+  }
+
+  async updateApproval(externalUserId, id, patch) {
+    const user = await this.user(externalUserId);
+    const result = await this.prisma.approval.updateMany({ where: { id, userId: user.id }, data: { status: patch.status, consumedAt: patch.consumedAt === undefined ? undefined : date(patch.consumedAt) } });
+    if (!result.count) throw forbidden(); return this.getApproval(externalUserId, id);
+  }
+
+  async createActivation(externalUserId, input) {
+    const user = await this.user(externalUserId); await this.assertProposal(user.id, input.proposalId);
+    try {
+      if (input.idempotencyKey) {
+        const existing = await this.prisma.rehearseActivation.findUnique({ where: { userId_idempotencyKey: { userId: user.id, idempotencyKey: input.idempotencyKey } } });
+        if (existing) return mapDates(existing);
+      }
+      return mapDates(await this.prisma.rehearseActivation.create({ data: { userId: user.id, proposalId: input.proposalId, proposalVersion: input.proposalVersion, status: input.status ?? "ACTIVE", snapshot: json(input.snapshot), runtimeState: json(input.runtimeState), idempotencyKey: input.idempotencyKey ?? null } }));
+    } catch (error) { throw databaseError(error); }
+  }
+
+  async getActivation(externalUserId, id) {
+    const user = await this.user(externalUserId); const row = await this.prisma.rehearseActivation.findFirst({ where: { id, userId: user.id } });
+    if (!row) throw forbidden(); return mapDates(row);
+  }
+
+  async getActivationByIdempotencyKey(externalUserId, idempotencyKey) {
+    const user = await this.user(externalUserId);
+    const row = await this.prisma.rehearseActivation.findUnique({ where: { userId_idempotencyKey: { userId: user.id, idempotencyKey } } });
+    return mapDates(row);
+  }
+
+  async getActiveActivationForProposal(externalUserId, proposalId) {
+    const user = await this.user(externalUserId); const row = await this.prisma.rehearseActivation.findFirst({ where: { userId: user.id, proposalId, status: "ACTIVE" }, orderBy: { createdAt: "desc" } });
+    if (!row) throw forbidden(); return mapDates(row);
+  }
+
+  async updateActivation(externalUserId, id, patch) {
+    const user = await this.user(externalUserId);
+    const result = await this.prisma.rehearseActivation.updateMany({ where: { id, userId: user.id }, data: { status: patch.status, runtimeState: patch.runtimeState === undefined ? undefined : json(patch.runtimeState), rolledBackAt: patch.rolledBackAt === undefined ? undefined : date(patch.rolledBackAt) } });
+    if (!result.count) throw forbidden(); return this.getActivation(externalUserId, id);
+  }
+
+  async addAuditEvent(externalUserId, input) {
+    const user = await this.user(externalUserId);
+    if (input.proposalId) await this.assertProposal(user.id, input.proposalId);
+    return mapDates(await this.prisma.rehearseAuditEvent.create({ data: { userId: user.id, proposalId: input.proposalId ?? null, activationId: input.activationId ?? null, type: input.type, details: json(input.details) } }));
+  }
+
+  async listAuditEvents(externalUserId, proposalId) {
+    const user = await this.user(externalUserId);
+    return this.prisma.rehearseAuditEvent.findMany({ where: { userId: user.id, ...(proposalId ? { proposalId } : {}) }, orderBy: { createdAt: "asc" } }).then((rows) => rows.map(mapDates));
+  }
+
+  async assertProposal(userId, id) { const row = await this.prisma.rehearseProposal.findFirst({ where: { id, userId }, select: { id: true } }); if (!row) throw forbidden(); }
   async user(externalUserId) { try { return await retryConnection(() => this.prisma.user.upsert({ where: { externalUserId }, create: { externalUserId }, update: {} })); } catch (error) { throw databaseError(error); } }
 }
 
-const date = (value) => new Date(value);
-const optionalDate = (value) => value ? date(value) : null;
-const json = (value) => value === undefined ? undefined : value;
-const iso = (value) => value?.toISOString();
-const event = (row) => ({ ...row, startTime: iso(row.startTime), endTime: iso(row.endTime), createdAt: iso(row.createdAt), updatedAt: iso(row.updatedAt) });
-const notification = (row) => ({ ...row, scheduledTime: iso(row.scheduledAt), createdAt: iso(row.createdAt) });
-const preference = (row) => ({ ...row, createdAt: iso(row.createdAt), updatedAt: iso(row.updatedAt) });
-const memory = (row) => ({ ...row, retentionUntil: iso(row.retentionUntil), deletedAt: iso(row.deletedAt), createdAt: iso(row.createdAt), updatedAt: iso(row.updatedAt) });
-const approval = (row) => ({ ...row, expiresAt: iso(row.expiresAt), consumedAt: iso(row.consumedAt), createdAt: iso(row.createdAt) });
-const monitoredPlan = (row) => ({ ...row, nextCheckAt: iso(row.nextCheckAt), createdAt: iso(row.createdAt), updatedAt: iso(row.updatedAt) });
-function workflow(row) { return { ...row, deadlineAt: iso(row.deadlineAt), createdAt: iso(row.createdAt), updatedAt: iso(row.updatedAt), steps: Object.fromEntries((row.steps ?? []).map((step) => [step.stepKey, { status: step.status, dependsOn: step.dependsOn, value: step.result, errorCode: step.errorCode, retryCount: step.retryCount }])) }; }
-function workflowFields(value) { return { status: value.status, approvalStatus: value.approvalStatus, retryCount: value.retryCount, deadlineAt: value.deadlineAt === undefined ? undefined : optionalDate(value.deadlineAt) }; }
-function monitorFields(value) { return { enabled: value.enabled, lastNotificationFingerprint: value.lastNotificationFingerprint, nextCheckAt: value.nextCheckAt === undefined ? undefined : optionalDate(value.nextCheckAt), quietHours: value.quietHours === undefined ? undefined : json(value.quietHours) }; }
-async function retryConnection(operation, attempts = 3) { let error; for (let attempt = 0; attempt < attempts; attempt += 1) { try { return await operation(); } catch (caught) { error = caught; if (!isTransientConnectionError(caught) || attempt === attempts - 1) throw caught; await new Promise((resolve) => setTimeout(resolve, 250 * (attempt + 1))); } } throw error; }
-function isTransientConnectionError(error) { return (typeof Prisma.PrismaClientInitializationError === "function" && error instanceof Prisma.PrismaClientInitializationError) || ["P1001", "P1002", "P1008", "P2024"].includes(error?.code); }
+const date = (value) => value ? new Date(value) : null;
+const json = (value) => value;
+function mapDates(row) { if (!row) return row; return Object.fromEntries(Object.entries(row).map(([key, value]) => [key, value instanceof Date ? value.toISOString() : value])); }
+async function retryConnection(operation, attempts = 3) { let error; for (let attempt = 0; attempt < attempts; attempt += 1) { try { return await operation(); } catch (caught) { error = caught; if (!isTransient(caught) || attempt === attempts - 1) throw caught; await new Promise((resolve) => setTimeout(resolve, 250 * (attempt + 1))); } } throw error; }
+function isTransient(error) { return (typeof Prisma.PrismaClientInitializationError === "function" && error instanceof Prisma.PrismaClientInitializationError) || ["P1001", "P1002", "P1008", "P2024"].includes(error?.code); }
 function databaseError(error) { if (error instanceof AppError) return error; if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") return new AppError("CONFLICT", "A record with this unique value already exists.", { status: 409 }); if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") return forbidden(); return new AppError("DATABASE_UNAVAILABLE", "Persistent storage is temporarily unavailable.", { status: 503, retryable: true }); }

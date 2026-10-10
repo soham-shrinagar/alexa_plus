@@ -1,7 +1,0 @@
-import crypto from "node:crypto";
-
-export class MonitoringService {
-  constructor({ repository, travelProvider, notify }) { Object.assign(this, { repository, travelProvider, notify }); }
-  async check(plan) { if (!plan.enabled || isQuietHour(plan.quietHours)) return { status: "SKIPPED", reason: "disabled_or_quiet_hours" }; const route = await this.travelProvider.getTravelTime({ origin: plan.origin, destination: plan.destination }); const increase = route.travelTimeMinutes - plan.baselineTravelMinutes; if (increase < plan.thresholdMinutes) return { status: "UNCHANGED", increase }; const fingerprint = crypto.createHash("sha256").update(`${plan.id}:${route.travelTimeMinutes}`).digest("hex"); if (plan.lastNotificationFingerprint === fingerprint) return { status: "DUPLICATE_SUPPRESSED", increase }; await this.notify(plan.userId, { message: `Travel time increased by ${increase} minutes for your monitored trip. Consider leaving earlier.`, scheduledTime: new Date().toISOString(), idempotencyKey: `monitor:${fingerprint}` }); await this.repository.updateMonitoredPlan(plan.userId, plan.id, { lastNotificationFingerprint: fingerprint, nextCheckAt: new Date(Date.now() + 15 * 60_000).toISOString() }); return { status: "NOTIFIED", increase, route, reason: "travel_time_increase" }; }
-}
-function isQuietHour(quietHours) { if (!quietHours) return false; const hour = new Date().getUTCHours(); return quietHours.start <= quietHours.end ? hour >= quietHours.start && hour < quietHours.end : hour >= quietHours.start || hour < quietHours.end; }

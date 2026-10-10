@@ -1,7 +1,7 @@
 {
-  "name": "mcp-server",
+  "name": "rehearse-mcp-server",
   "version": "1.0.0",
-  "description": "",
+  "description": "A Streamable HTTP MCP server that compiles, simulates, repairs, and safely activates household routines.",
   "main": "src/server.js",
   "scripts": {
     "test": "node --test",
@@ -16,7 +16,8 @@
     "@modelcontextprotocol/sdk": "^1.32.1",
     "@prisma/client": "6.19.1",
     "express": "^5.2.1",
-    "jsonwebtoken": "^9.0.3"
+    "jsonwebtoken": "^9.0.3",
+    "zod": "^3.25.76"
   },
   "type": "module",
   "devDependencies": {

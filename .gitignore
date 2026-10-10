@@ -31,6 +31,3 @@ prisma/generated/
 .idea/
 .DS_Store
 Thumbs.db
-
-# Requested: do not include Markdown documents in new commits
-*.md

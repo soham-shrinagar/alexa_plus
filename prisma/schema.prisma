@@ -19,6 +19,10 @@ model User {
   workflows Workflow[]
   approvals Approval[]
   monitoredPlans MonitoredPlan[]
+  rehearseProposals RehearseProposal[]
+  rehearseSimulations RehearseSimulation[]
+  rehearseActivations RehearseActivation[]
+  rehearseAuditEvents RehearseAuditEvent[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -202,4 +206,72 @@ model ProviderHealth {
   openedAt DateTime?
   lastFailureAt DateTime?
   updatedAt DateTime @updatedAt
+}
+
+model RehearseProposal {
+  id String @id @default(cuid())
+  userId String
+  scenarioId String
+  goal String
+  status String @default("DRAFT")
+  version Int @default(1)
+  routine Json
+  microTwin Json
+  context Json
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  simulations RehearseSimulation[]
+  activations RehearseActivation[]
+  auditEvents RehearseAuditEvent[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([userId, status, createdAt])
+}
+
+model RehearseSimulation {
+  id String @id @default(cuid())
+  userId String
+  proposalId String
+  proposalVersion Int
+  status String
+  violations Json
+  trace Json
+  summary Json
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  proposal RehearseProposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  @@index([userId, proposalId, createdAt])
+}
+
+model RehearseActivation {
+  id String @id @default(cuid())
+  userId String
+  proposalId String
+  proposalVersion Int
+  status String @default("ACTIVE")
+  snapshot Json
+  runtimeState Json
+  idempotencyKey String?
+  activatedAt DateTime @default(now())
+  rolledBackAt DateTime?
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  proposal RehearseProposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  auditEvents RehearseAuditEvent[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([userId, idempotencyKey])
+  @@index([userId, proposalId, status])
+}
+
+model RehearseAuditEvent {
+  id String @id @default(cuid())
+  userId String
+  proposalId String?
+  activationId String?
+  type String
+  details Json
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  proposal RehearseProposal? @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  activation RehearseActivation? @relation(fields: [activationId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  @@index([userId, proposalId, createdAt])
 }

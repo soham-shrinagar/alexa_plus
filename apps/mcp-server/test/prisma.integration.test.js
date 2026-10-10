@@ -3,34 +3,22 @@ import test from "node:test";
 import crypto from "node:crypto";
 import { PrismaClient } from "@prisma/client";
 import { PrismaRepository } from "../src/repositories/prismaRepository.js";
+import { RehearseService } from "../src/services/rehearseService.js";
 
 const enabled = process.env.RUN_NEON_INTEGRATION === "true";
-const prefix = `test-lifeops-${crypto.randomUUID()}`;
-const firstUser = `${prefix}-a`;
-const secondUser = `${prefix}-b`;
+const prefix = `test-rehearse-${crypto.randomUUID()}`;
+const goal = "Make school mornings run themselves. Leave by 7:45, keep quiet before 7, and leave 15 minutes earlier when it rains.";
 
-test("Neon Prisma repository persists records, preserves isolation, and survives reconnect", { skip: !enabled, timeout: 60_000 }, async () => {
+test("Prisma persists and isolates the Rehearse lifecycle", { skip: !enabled, timeout: 60_000 }, async () => {
   const prisma = new PrismaClient({ log: [] });
   try {
-    const repository = new PrismaRepository(prisma);
-    const stored = await repository.updatePreference(firstUser, "travelMode", "car", "explicit");
-    assert.equal(stored.value, "car");
-    assert.equal(stored.source, "explicit");
-    assert.equal((await repository.getPreferences(firstUser)).length, 1);
-    assert.equal((await repository.getPreferences(secondUser)).length, 0);
-    const notification = await repository.createNotification(firstUser, { message: "Integration-test reminder", scheduledTime: "2030-01-01T10:00:00.000Z", idempotencyKey: `${prefix}-notification` });
-    const duplicate = await repository.createNotification(firstUser, { message: "Integration-test reminder", scheduledTime: "2030-01-01T10:00:00.000Z", idempotencyKey: `${prefix}-notification` });
-    assert.equal(notification.id, duplicate.id);
-    await assert.rejects(() => repository.getNotification(secondUser, notification.id));
-    const workflow = await repository.createWorkflow(firstUser, { type: "INTEGRATION_TEST", idempotencyKey: `${prefix}-workflow` });
-    const updated = await repository.updateWorkflow(firstUser, workflow.id, { status: "RUNNING", steps: { first: { status: "SUCCEEDED", value: { safe: true } } } });
-    assert.equal(updated.steps.first.status, "SUCCEEDED");
-    await prisma.$disconnect();
-    await prisma.$connect();
-    const afterRestart = new PrismaRepository(prisma);
-    assert.equal((await afterRestart.getPreferences(firstUser))[0].value, "car");
+    const service = new RehearseService({ repository: new PrismaRepository(prisma) });
+    const compiled = await service.compile(`${prefix}-a`, { goal });
+    assert.equal((await service.simulate(`${prefix}-a`, compiled.proposal.id)).simulation.status, "FAILED");
+    await assert.rejects(() => service.simulate(`${prefix}-b`, compiled.proposal.id));
+    await prisma.$disconnect(); await prisma.$connect();
+    const afterRestart = new RehearseService({ repository: new PrismaRepository(prisma) });
+    assert.equal((await afterRestart.status(`${prefix}-a`, compiled.proposal.id)).proposal.goal, goal);
     await prisma.user.deleteMany({ where: { externalUserId: { startsWith: prefix } } });
-  } finally {
-    await prisma.$disconnect();
-  }
+  } finally { await prisma.$disconnect(); }
 });

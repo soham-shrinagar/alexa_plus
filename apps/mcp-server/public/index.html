@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Rehearse compiles, simulates, repairs, and safely activates adaptive household routines.">
+  <title>Rehearse — prove the routine before the morning</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="Rehearse home"><span class="brand-mark">R</span><span>rehearse</span></a>
+    <div class="connection"><span id="connection-dot" class="dot"></span><span id="connection-label">Not connected</span><span class="protocol">MCP 2025-11-25</span></div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div>
+        <p class="eyebrow">A safety layer for Alexa+ household autonomy</p>
+        <h1>Prove the routine<br><em>before</em> the morning.</h1>
+        <p class="lede">Rehearse turns a household goal into a temporary micro-twin, simulates every step, repairs conflicts, and activates only after verification and approval.</p>
+      </div>
+      <div class="hero-stat"><span id="score">—</span><small>constraints passing</small></div>
+    </section>
+
+    <section class="workspace">
+      <aside class="control-panel">
+        <div class="section-heading"><span>01</span><div><h2>Describe the outcome</h2><p>The school morning is a demo, not a product limit.</p></div></div>
+        <label for="goal">Household goal</label>
+        <textarea id="goal" rows="7">Make our school mornings run themselves. We need to leave by 7:45. Don’t wake the baby before 7, don’t run the kettle and water heater together, and leave 15 minutes earlier when it rains.</textarea>
+        <div class="actions">
+          <button id="guided" class="primary">Run the guided rehearsal <span>→</span></button>
+          <button id="reset" class="secondary">Reset</button>
+        </div>
+        <p id="status" class="status" role="status">Ready to compile a routine.</p>
+
+        <div class="stepper" id="stepper">
+          <button data-action="compile"><b>1</b><span>Compile<small>Build a minimal model</small></span></button>
+          <button data-action="simulate" disabled><b>2</b><span>Simulate<small>Expose conflicts</small></span></button>
+          <button data-action="repair" disabled><b>3</b><span>Repair<small>Resolve safe changes</small></span></button>
+          <button data-action="revise" disabled><b>4</b><span>Revise<small>Confirm one exception</small></span></button>
+          <button data-action="approve" disabled><b>5</b><span>Approve<small>Bind the exact version</small></span></button>
+          <button data-action="disrupt" disabled><b>6</b><span>Adapt<small>Handle live disruption</small></span></button>
+          <button data-action="rollback" disabled><b>7</b><span>Rollback<small>Restore the snapshot</small></span></button>
+        </div>
+      </aside>
+
+      <section class="stage" aria-live="polite">
+        <div class="stage-head"><div><p class="eyebrow">Current proposal</p><h2 id="proposal-title">Nothing compiled yet</h2></div><span id="proposal-state" class="pill muted">DRAFT</span></div>
+        <div class="metrics">
+          <div><strong id="version">—</strong><span>version</span></div>
+          <div><strong id="entities">—</strong><span>relevant entities</span></div>
+          <div><strong id="violations">—</strong><span>critical conflicts</span></div>
+          <div><strong id="departure">—</strong><span>departure</span></div>
+        </div>
+
+        <div class="timeline-card">
+          <div class="card-title"><h3>Temporal rehearsal</h3><span>06:00 — 08:00</span></div>
+          <div id="timeline" class="timeline empty"><p>Compile the goal to see the proposed sequence.</p></div>
+        </div>
+
+        <div class="split">
+          <div class="card">
+            <div class="card-title"><h3>Constraint findings</h3><span id="finding-count">0</span></div>
+            <div id="findings" class="findings empty"><p>No simulation yet.</p></div>
+          </div>
+          <div class="card">
+            <div class="card-title"><h3>Just-in-time micro-twin</h3><span>proposal-scoped</span></div>
+            <div id="twin" class="twin empty"><p>Only referenced people and devices will appear here.</p></div>
+          </div>
+        </div>
+
+        <div class="card trace-card">
+          <div class="card-title"><h3>MCP activity</h3><span>real JSON-RPC calls</span></div>
+          <ol id="trace" class="trace"><li><time>—</time><span>Waiting for a browser-to-server MCP session.</span></li></ol>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <dialog id="approval-dialog">
+    <form method="dialog">
+      <p class="eyebrow">Explicit approval</p>
+      <h2>Activate this verified version?</h2>
+      <p id="approval-copy">Rehearse will bind your approval to the exact proposal version and capture a rollback snapshot.</p>
+      <div class="dialog-actions"><button value="cancel" class="secondary">Cancel</button><button id="confirm-approval" value="confirm" class="primary">Confirm activation</button></div>
+    </form>
+  </dialog>
+
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

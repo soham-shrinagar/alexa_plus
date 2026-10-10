@@ -1,4 +1,95 @@
 import crypto from "node:crypto";
 import { forbidden } from "../errors.js";
-export class MemoryRepository { constructor(seed = {}) { this.events = seed.events ?? []; this.notifications = []; this.idempotency = new Map(); this.preferences = []; this.memories = []; this.workflows = []; this.approvals = []; this.monitoredPlans = []; } async getEvents(userId, { startTime, endTime }) { return this.events.filter((event) => event.userId === userId && (!startTime || event.endTime >= startTime) && (!endTime || event.startTime <= endTime)); } async createEvent(userId, event) { const record = { id: crypto.randomUUID(), userId, ...event, createdAt: new Date().toISOString() }; this.events.push(record); return record; } async createNotification(userId, input) { if (input.idempotencyKey && this.idempotency.has(`${userId}:${input.idempotencyKey}`)) return this.idempotency.get(`${userId}:${input.idempotencyKey}`); const notification = { id: crypto.randomUUID(), userId, message: input.message, scheduledTime: input.scheduledTime, status: "SUBMITTED", createdAt: new Date().toISOString() }; this.notifications.push(notification); if (input.idempotencyKey) this.idempotency.set(`${userId}:${input.idempotencyKey}`, notification); notification.status = "CONFIRMED"; return notification; } async getNotification(userId, id) { const notification = this.notifications.find((item) => item.id === id); if (!notification || notification.userId !== userId) throw forbidden(); return notification; } async getPreferences(userId) { return this.preferences.filter((item) => item.userId === userId); } async updatePreference(userId, key, value, source = "explicit") { const existing = this.preferences.find((item) => item.userId === userId && item.key === key); if (existing) return Object.assign(existing, { value, source, updatedAt: new Date().toISOString() }); const item = { id: crypto.randomUUID(), userId, key, value, source, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }; this.preferences.push(item); return item; } async listMemories(userId) { return this.memories.filter((item) => item.userId === userId && !item.deletedAt); } async searchMemories(userId, query, limit = 20) { const needle = query.trim().toLowerCase(); return (await this.listMemories(userId)).filter((item) => [item.category, item.summary, item.referenceType, item.referenceId].filter(Boolean).some((value) => value.toLowerCase().includes(needle))).slice(0, limit); } async addMemory(userId, memory) { const item = { id: crypto.randomUUID(), userId, ...memory, createdAt: new Date().toISOString() }; this.memories.push(item); return item; } async deleteMemory(userId, id) { const item = this.memories.find((memory) => memory.id === id && memory.userId === userId); if (!item) throw forbidden(); item.deletedAt = new Date().toISOString(); return item; } async createWorkflow(userId, workflow) { if (workflow.idempotencyKey) { const previous = this.workflows.find((item) => item.userId === userId && item.idempotencyKey === workflow.idempotencyKey); if (previous) return previous; } const item = { id: crypto.randomUUID(), userId, status: "PENDING", steps: {}, ...workflow, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }; this.workflows.push(item); return item; } async updateWorkflow(userId, id, patch) { const item = this.workflows.find((workflow) => workflow.id === id && workflow.userId === userId); if (!item) throw forbidden(); Object.assign(item, patch, { updatedAt: new Date().toISOString() }); return item; } async getWorkflow(userId, id) { const item = this.workflows.find((workflow) => workflow.id === id && workflow.userId === userId); if (!item) throw forbidden(); return item; } async createApproval(userId, approval) { const item = { id: crypto.randomUUID(), userId, ...approval, createdAt: new Date().toISOString() }; this.approvals.push(item); return item; } async getApproval(userId, id) { const item = this.approvals.find((approval) => approval.id === id && approval.userId === userId); if (!item) throw forbidden(); return item; } async updateApproval(userId, id, patch) { const item = await this.getApproval(userId, id); return Object.assign(item, patch); } async createMonitoredPlan(userId, plan) { const item = { id: crypto.randomUUID(), userId, enabled: true, ...plan, createdAt: new Date().toISOString() }; this.monitoredPlans.push(item); return item; } async getMonitoredPlan(userId, id) { const item = this.monitoredPlans.find((plan) => plan.id === id && plan.userId === userId); if (!item) throw forbidden(); return item; } async updateMonitoredPlan(userId, id, patch) { const item = await this.getMonitoredPlan(userId, id); return Object.assign(item, patch, { updatedAt: new Date().toISOString() }); } }
-export const demoEvents = [{ id: "demo-meeting-1", userId: "demo-user", title: "Bangalore client meeting", startTime: "2026-10-10T10:00:00.000Z", endTime: "2026-10-10T11:00:00.000Z", location: "Koramangala, Bengaluru" }, { id: "other-user-event", userId: "other-user", title: "Private event", startTime: "2026-10-10T09:00:00.000Z", endTime: "2026-10-10T10:00:00.000Z", location: "Private" }];
+
+export class MemoryRepository {
+  constructor() {
+    this.proposals = [];
+    this.simulations = [];
+    this.activations = [];
+    this.approvals = [];
+    this.auditEvents = [];
+  }
+
+  async createProposal(userId, input) {
+    const now = new Date().toISOString();
+    const record = { id: crypto.randomUUID(), userId, status: "DRAFT", version: 1, ...structuredClone(input), createdAt: now, updatedAt: now };
+    this.proposals.push(record);
+    return structuredClone(record);
+  }
+
+  async getProposal(userId, id) { return structuredClone(owned(this.proposals, userId, id)); }
+
+  async updateProposal(userId, id, patch) {
+    const record = owned(this.proposals, userId, id);
+    Object.assign(record, structuredClone(patch), { updatedAt: new Date().toISOString() });
+    return structuredClone(record);
+  }
+
+  async createSimulation(userId, input) {
+    owned(this.proposals, userId, input.proposalId);
+    const record = { id: crypto.randomUUID(), userId, ...structuredClone(input), createdAt: new Date().toISOString() };
+    this.simulations.push(record);
+    return structuredClone(record);
+  }
+
+  async createApproval(userId, input) {
+    const record = { id: crypto.randomUUID(), userId, ...structuredClone(input), createdAt: new Date().toISOString() };
+    this.approvals.push(record);
+    return structuredClone(record);
+  }
+
+  async getApproval(userId, id) { return structuredClone(owned(this.approvals, userId, id)); }
+
+  async updateApproval(userId, id, patch) {
+    const record = owned(this.approvals, userId, id);
+    Object.assign(record, structuredClone(patch));
+    return structuredClone(record);
+  }
+
+  async createActivation(userId, input) {
+    if (input.idempotencyKey) {
+      const existing = this.activations.find((item) => item.userId === userId && item.idempotencyKey === input.idempotencyKey);
+      if (existing) return structuredClone(existing);
+    }
+    owned(this.proposals, userId, input.proposalId);
+    const now = new Date().toISOString();
+    const record = { id: crypto.randomUUID(), userId, status: "ACTIVE", ...structuredClone(input), activatedAt: now, createdAt: now, updatedAt: now };
+    this.activations.push(record);
+    return structuredClone(record);
+  }
+
+  async getActivation(userId, id) { return structuredClone(owned(this.activations, userId, id)); }
+
+  async getActivationByIdempotencyKey(userId, idempotencyKey) {
+    const record = this.activations.find((item) => item.userId === userId && item.idempotencyKey === idempotencyKey);
+    return record ? structuredClone(record) : null;
+  }
+
+  async getActiveActivationForProposal(userId, proposalId) {
+    const record = this.activations.find((item) => item.userId === userId && item.proposalId === proposalId && item.status === "ACTIVE");
+    if (!record) throw forbidden();
+    return structuredClone(record);
+  }
+
+  async updateActivation(userId, id, patch) {
+    const record = owned(this.activations, userId, id);
+    Object.assign(record, structuredClone(patch), { updatedAt: new Date().toISOString() });
+    return structuredClone(record);
+  }
+
+  async addAuditEvent(userId, input) {
+    const record = { id: crypto.randomUUID(), userId, ...structuredClone(input), createdAt: new Date().toISOString() };
+    this.auditEvents.push(record);
+    return structuredClone(record);
+  }
+
+  async listAuditEvents(userId, proposalId) {
+    return this.auditEvents.filter((item) => item.userId === userId && (!proposalId || item.proposalId === proposalId)).map((item) => structuredClone(item));
+  }
+}
+
+function owned(collection, userId, id) {
+  const record = collection.find((item) => item.id === id && item.userId === userId);
+  if (!record) throw forbidden();
+  return record;
+}
