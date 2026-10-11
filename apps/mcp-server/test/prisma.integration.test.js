@@ -18,6 +18,11 @@ test("Neon supports the complete MCP lifecycle, concurrent activation, ownership
     const base = `http://127.0.0.1:${listener.address().port}`;
     const first = await connect(instance, base, users[0]);
     const second = await connect(instance, base, users[1]);
+    const profiles = await first.call("household.list_profiles", {});
+    const custom = { ...profiles.profiles.find(profile => profile.id === "work-morning"), id: "neon-custom-home", name: "Synthetic Neon household" };
+    await first.call("household.configure", { profile: custom, confirmed: true });
+    assert.ok((await first.call("household.list_profiles", {})).profiles.some(profile => profile.id === custom.id));
+    assert.ok(!(await second.call("household.list_profiles", {})).profiles.some(profile => profile.id === custom.id));
     const { proposal } = await first.call("routine.compile", { goal });
     assert.match(proposal.id, /^c/); // Regression: these CUIDs must pass MCP input validation.
     assert.equal((await first.call("simulation.run", { proposalId: proposal.id })).simulation.status, "FAILED");
@@ -46,6 +51,7 @@ test("Neon supports the complete MCP lifecycle, concurrent activation, ownership
     await prisma.$disconnect(); await prisma.$connect();
     const persisted = await new PrismaRepository(prisma).getProposal(users[0], proposal.id);
     assert.equal(persisted.status, "ROLLED_BACK");
+    assert.equal((await new PrismaRepository(prisma).listHouseholds(users[0]))[0].id, custom.id);
     assert.equal(await prisma.rehearseActivation.count({ where: { proposalId: proposal.id } }), 1);
   } finally {
     if (listener) await new Promise((resolve) => listener.close(resolve));

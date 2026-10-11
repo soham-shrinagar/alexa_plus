@@ -46,7 +46,19 @@ The micro-twin selects only referenced people and devices. Audit events contain 
 
 Demo records accumulate in Prisma because visits create new identities; use synthetic inputs and define retention before exposing a public demo. Application audit events are append-only, but are not cryptographically chained or protected from a database administrator.
 
-## Production gaps
+## LLM and external-provider boundaries
+
+Gemini credentials stay server-side in an ignored environment file; no key is returned in tools, health, UI, or error bodies. Treat a key pasted into chat as exposed and rotate it. Requests and the selected household/policy/evidence snapshot are sent to Gemini. Coordinates go to Open-Meteo and, only when enabled, TomTom. Use synthetic names/locations in public demonstrations and review provider data terms before sending real household details.
+
+The model receives the actual registered tool catalog but can execute only an application-owned allowlist through `assistant.respond`: plan, simulate, repair, revise, status, or request approval. It cannot activate, roll back, inject events, or save household policies. Requesting approval is not granting it. MCP callers are still responsible for truthful human confirmation; tool annotations are hints, not authorization.
+
+Zod and semantic validation reject malformed/unknown plans, task mapping failures, short declared durations, and dependency cycles. Power/noise and household safety floors come from declared profiles, not model output. Repairs cannot relax those floors. Earlier-person exceptions require explicit named clock-time permission with matching weekday scope. Gemini may still misinterpret intent: task review and verification are necessary, not a proof of universal safety.
+
+Provider endpoints are fixed, redirects rejected, responses size-limited, and calls time-bounded. Failures never substitute invented live evidence. A five-minute weather/traffic cache keeps original timestamps; evidence older than 15 minutes cannot authorize activation. Refresh increments proposal version. Network calls are outside DB transactions, with version checks before applying edits.
+
+Built-in household IDs are reserved; custom profiles are per-user and explicitly confirmed. Existing snapshots cannot be silently changed by later household edits. Production needs account-level cost limits, stronger distributed abuse controls, LLM threat evaluation, retention/deletion policies, and hardware interlocks before any physical executor.
+
+## Production deployment work
 
 Before real household deployment, add a real identity provider, consent and deletion controls, encrypted secret management, vendor-specific device authorization, device-state verification, a shared MCP session store for multi-instance hosting, log redaction/retention policy, threat modeling, abuse testing, and independent security review.
 

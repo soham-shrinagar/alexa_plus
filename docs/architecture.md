@@ -1,62 +1,54 @@
 # Architecture
 
-## Boundaries
-
-Rehearse follows dependency direction from transport toward pure domain logic:
+## Runtime flow
 
 ```text
-Browser MCP client
-      │ JSON-RPC / Streamable HTTP
-      ▼
-MCP tools ── auth/scope/schema/error mapping
-      ▼
-RehearseService ── lifecycle and safety policy
-      ├──────────────► repository interface ── memory or Prisma
-      ▼
-Pure domain modules
-  parser → compiler → micro-twin → simulator → repair/revision → runtime adapter
+Browser -> MCP initialize/list/call -> authenticated tool handlers
+                                      |
+                          RehearseService (policy + lifecycle)
+                             |                    |
+                      PlannerService       EnvironmentProvider
+                      Gemini adapter       Open-Meteo / optional TomTom
+                             |
+                    schema + semantic plan validation
+                             |
+                    deterministic domain verifier
+                             |
+                per-user transaction -> repository -> memory / Neon
+                             |
+                   exact-version human approval
+                             |
+                   simulated runtime -> recovery / rollback
 ```
 
-The scenario fixture depends on no infrastructure. The simulator accepts a routine and context and returns evidence without persisting or executing anything.
+Gemini interprets requests and chooses an allowlisted next operation. It receives the catalog built from the same tool definitions registered with the MCP SDK, including their input schemas and annotations. It does not receive credentials or unrestricted function execution.
 
-## Proposal state model
+## Household model
 
-```text
-DRAFT → NEEDS_REPAIR → NEEDS_INPUT → VERIFIED → AWAITING_APPROVAL → ACTIVE → ROLLED_BACK
-             └──────────────────────► VERIFIED
-                                                                   │         ▲
-                                                                   ▼         │
-                                                               SUSPENDED ────┘
-```
+Three built-in profiles (school, work, evening guests) and user-owned custom profiles declare people, capabilities, device power/noise/minimum duration, start policies, quiet hours, power budget, coordinates, and optional routes. Built-ins cannot be overwritten. Custom saves require explicit confirmation.
 
-Every repair or user revision increments the proposal version. Approval payloads contain both proposal ID and version, preventing an approval for one plan from authorizing a later edit.
+Profiles persist under reserved `rehearse.household.<id>` keys in the existing UserPreference table. This is an intentionally reviewed reuse of the legacy table, not an additional schema migration. Proposals store a complete household snapshot for interpretation and a minimal referenced micro-twin for verification/display. Later profile edits do not mutate old proposals.
 
-Activated, suspended, and rolled-back proposals are immutable. Compile another proposal to edit them. Unsafe runtime changes suspend the activation and virtual device schedule; a safe follow-up event can resume it, and rollback is always available while active or suspended.
+## Safety model
 
-## Constraint evaluators
+Plans map extracted tasks to known step IDs. Unknown entities/capabilities/tools, unmapped steps/tasks, required optional steps, cross-day timing, short device durations, and cyclic dependencies are rejected before persistence. Device power/noise comes from trusted declarations, never the model. Household constraints are always inserted by application code.
 
-- `MAX_CONCURRENT_POWER`: sweeps time boundaries and sums every simultaneously powered step against the threshold.
-- `QUIET_WINDOW`: rejects audible steps before quiet hours end.
-- `DEADLINE`: computes conditional and travel-adjusted departure and ensures required preparation finishes.
-- `EARLIEST_START`: preserves a person/device start boundary, with explicitly authorized weekday exceptions.
-- `DEVICE_AVAILABLE`: blocks non-optional unavailable capabilities.
+The verifier checks power, quiet windows, departure/readiness, earliest starts, capability availability, dependencies, per-task deadlines, and exclusive resources. Unsupported constraints and invalid timing fail closed. The deterministic fixture remains a regression/demo mode, not a claim of LLM reasoning.
 
-Evaluators return structured violations rather than throwing. Transport or repository failures throw stable application errors.
+Repair changes timing without relaxing constraints, removing required work, or shortening duration. It may fail: unresolved family choices require explicit revision. Named earliest-start permissions must include a supported clock time and correct weekday scope. Other policy relaxation is blocked.
 
-Unsupported constraint types and malformed/cross-day step times fail verification rather than being silently accepted. Templates describe scenario actions; generic scheduling logic aligns departure-relative cues.
+## Versions and transactions
 
-## Why deterministic simulation
+Draft -> needs repair/input -> verified -> awaiting approval -> active/suspended -> rolled back.
 
-An LLM may help interpret a goal in a later integration, but safety claims must remain reproducible. The current parser is explicitly a bounded rule parser. The compiled routine and constraints are persisted, and the pass/fail result is computed from those objects. A judge can see why a conflict exists and reproduce it exactly.
+Repair, revision, and context refresh increment versions. Approval hashes bind the proposal ID/version and expire after five minutes. Live evidence older than 15 minutes requires refresh. Activated proposals are immutable; runtime artifacts are separate.
 
-## Persistence
-
-The service programs against repository methods. Memory mode is ideal for demos. Prisma mode persists JSON routine artifacts plus indexed lifecycle metadata. User ownership checks occur in repository queries, not only at the tool layer.
-
-Every lifecycle mutation uses `withUserLock`: memory serializes mutations and restores a snapshot on failure; Prisma takes a per-user row lock inside an interactive transaction. Proposal, simulation, approval, activation, and audit writes commit together or roll back together. Same-key activation retries return the original activation; conflicting keys/versions cannot duplicate execution. Identifiers may be UUIDs in memory or CUIDs in Prisma.
-
-Legacy LifeOps tables remain declared only for additive migration compatibility. They are unused by Rehearse and can be removed later in a separately reviewed destructive migration.
+External calls happen before opening a transaction. The service then checks ownership/version and performs proposal/evidence/audit writes atomically under a per-user lock. Memory snapshots on failure; PostgreSQL row-locks and rolls back. Stale concurrent revisions/refreshes are refused. Idempotent activation cannot consume approval twice.
 
 ## Runtime boundary
 
-Activation captures initially idle virtual device states/context, then creates scheduled virtual actions. Adaptation updates those schedules and re-verifies; rollback clears the routine and restores the captured device states/context. No wall-clock scheduler or physical device adapter runs. A future production adapter must translate capabilities into authorized vendor calls and verify real resulting state.
+Device effects, disturbances, recovery reports, schedules, and snapshot restoration are virtual. Required failure suspends virtual schedules. Recovery restores only approved actions and re-verifies; unresolved conflicts remain suspended. A zero total-delay report can clear a simulated delay. Rollback is available from active/suspended states.
+
+There is no physical executor, wall-clock scheduler, continuous weather/traffic watcher, general Alexa/Echo connection, or complete house twin. Production needs vendor adapters, identity/consent, telemetry validation, and operational review.
+
+See [providers.md](providers.md), [mcp-tools.md](mcp-tools.md), and [security.md](security.md).

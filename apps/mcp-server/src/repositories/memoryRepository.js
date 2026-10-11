@@ -8,6 +8,7 @@ export class MemoryRepository {
     this.activations = [];
     this.approvals = [];
     this.auditEvents = [];
+    this.households = [];
     this.mutationQueue = Promise.resolve();
   }
 
@@ -17,7 +18,7 @@ export class MemoryRepository {
     let release;
     this.mutationQueue = new Promise((resolve) => { release = resolve; });
     await previous;
-    const collections = ["proposals", "simulations", "activations", "approvals", "auditEvents"];
+    const collections = ["proposals", "simulations", "activations", "approvals", "auditEvents", "households"];
     const snapshot = Object.fromEntries(collections.map((key) => [key, structuredClone(this[key])]));
     try { return await operation(this); }
     catch (error) { for (const key of collections) this[key] = snapshot[key]; throw error; }
@@ -29,6 +30,14 @@ export class MemoryRepository {
     const record = { id: crypto.randomUUID(), userId, status: "DRAFT", version: 1, ...structuredClone(input), createdAt: now, updatedAt: now };
     this.proposals.push(record);
     return structuredClone(record);
+  }
+
+  async listHouseholds(userId) { return structuredClone(this.households.filter((item) => item.userId === userId).map((item) => item.profile)); }
+  async saveHousehold(userId, profile) {
+    const record = this.households.find((item) => item.userId === userId && item.profile.id === profile.id);
+    if (record) record.profile = structuredClone(profile);
+    else this.households.push({ userId, profile: structuredClone(profile) });
+    return structuredClone(profile);
   }
 
   async getProposal(userId, id) { return structuredClone(owned(this.proposals, userId, id)); }

@@ -15,6 +15,9 @@ import { getPrismaClient, disconnectPrismaClient } from "./repositories/prismaCl
 import { RehearseService } from "./services/rehearseService.js";
 import { registerTools } from "./tools/registerTools.js";
 import { Telemetry, log } from "./observability.js";
+import { GeminiProvider } from "./providers/gemini.js";
+import { EnvironmentProvider } from "./providers/environment.js";
+import { PlannerService } from "./services/plannerService.js";
 
 const publicDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../public");
 
@@ -23,7 +26,9 @@ export async function createApplication(overrides = {}) {
   const tokenService = overrides.tokenService ?? createTokenService(config);
   const telemetry = overrides.telemetry ?? new Telemetry();
   const repository = overrides.repository ?? (config.repositoryMode === "prisma" ? new PrismaRepository(getPrismaClient()) : new MemoryRepository());
-  const service = overrides.service ?? new RehearseService({ repository });
+  const planner = overrides.planner ?? (config.geminiApiKey ? new PlannerService(new GeminiProvider({ apiKey: config.geminiApiKey, model: config.geminiModel, timeoutMs: config.llmTimeoutMs })) : undefined);
+  const environment = overrides.environment ?? new EnvironmentProvider({ trafficApiKey: config.trafficApiKey });
+  const service = overrides.service ?? new RehearseService({ repository, planner, environment });
   const oauth = new OAuthService({ config, tokenService });
   const app = express();
   app.disable("x-powered-by");
@@ -57,7 +62,7 @@ export async function createApplication(overrides = {}) {
     const token = tokenService.issue({ userId: `demo-user-${crypto.randomUUID()}`, clientId: "rehearse-web-demo", scopes: ["mcp:tools"], expiresIn: "30m" });
     return res.json({ accessToken: token, tokenType: "Bearer", expiresIn: 1800, endpoint: "/mcp", protocolVersion: "2025-11-25" });
   });
-  app.get("/health", (_req, res) => res.json({ status: "ok", product: "Rehearse", protocolVersion: "2025-11-25", demoMode: config.demoMode, repositoryMode: config.repositoryMode }));
+  app.get("/health", (_req, res) => res.json({ status: "ok", product: "Rehearse", protocolVersion: "2025-11-25", demoMode: config.demoMode, repositoryMode: config.repositoryMode, plannerConfigured: Boolean(planner), geminiModel: config.geminiModel, weatherProvider: "Open-Meteo", trafficConfigured: Boolean(config.trafficApiKey) }));
   app.get("/metrics", authenticate, (_req, res) => res.json(telemetry.snapshot()));
 
   const sessions = new Map();

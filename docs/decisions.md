@@ -22,7 +22,7 @@ Reason: public Alexa+ tooling is unavailable; the competition permits a web MCP 
 
 Decision: compile to explicit constraints and evaluate them with deterministic functions.
 
-Reason: safety evidence must be reproducible. A future model can assist interpretation, but it should not be the sole arbiter of pass/fail.
+Reason: safety evidence must be reproducible. Gemini now assists interpretation, but it is not the arbiter of pass/fail.
 
 ## ADR-005: objective repair versus subjective clarification
 
@@ -48,8 +48,26 @@ Decision: commit each lifecycle mutation and its approval/evidence/audit records
 
 Reason: concurrent activation must consume one approval once, persistence failure must permit safe retry, and Prisma CUIDs must work through the same MCP surface as memory UUIDs.
 
-## ADR-009: bounded interpretation and virtual execution
+## ADR-009: explicit fixture interpretation and virtual execution
 
 Decision: expose the supported rule grammar honestly, use scenario action templates, and represent activation as virtual scheduled device states.
 
 Reason: generic safety architecture is valuable without claiming universal natural-language inference or physical control. Unsafe adaptations suspend those schedules; rollback restores the virtual snapshot. A real scheduler and vendor adapter require separately authorized implementation.
+
+## ADR-010: Gemini interpretation, deterministic authority
+
+Decision: Gemini interprets tasks and an allowlisted conversational operation using the actual registered MCP schemas. The application validates output and supplies household safety floors. LLM network calls happen outside database locks; commits recheck versions.
+
+Reason: language flexibility must not grant execution authority or hold DB transactions during an external request. Preserve the deterministic fixture explicitly for regression tests and backup footage; never silently substitute it for a failed LLM call.
+
+## ADR-011: configurable household JSON profiles
+
+Decision: include school/work/evening profiles and per-user confirmed custom profiles. Store them under a reserved UserPreference key namespace and snapshot them into proposals.
+
+Reason: a general household model needs capabilities and constraints, not a complete physical twin or destructive schema replacement. This intentionally reuses an existing table; legacy calendar/task functionality remains unused.
+
+## ADR-012: keyless weather first, optional traffic
+
+Decision: implement real Open-Meteo hourly forecasts now and an optional TomTom current-routing adapter. Label evidence/cache/freshness and refuse provider failures or stale evidence at approval. Synthetic disturbances remain explicit simulation controls.
+
+Reason: one verifiable external source provides value without another credential dependency. Traffic is not misrepresented as a forecast or a background watcher. Device recovery restores only previously approved work and verifies again.

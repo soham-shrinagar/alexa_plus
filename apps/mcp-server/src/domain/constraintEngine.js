@@ -19,6 +19,20 @@ export function simulateRoutine(routine, context = routine.context) {
 }
 
 const evaluators = {
+  RESOURCE_EXCLUSIVE(constraint, steps) {
+    return steps.flatMap((left, index) => steps.slice(index + 1).filter((right) => left.targetId === right.targetId && left.startMinute < right.endMinute && right.startMinute < left.endMinute).map((right) => violation(constraint, "RESOURCE_OVERLAP", `${left.label} and ${right.label} need ${left.targetId} at the same time.`, [left.id, right.id])));
+  },
+  DEPENDENCY(constraint, steps) {
+    const before = steps.find((step) => step.id === constraint.predecessorId);
+    const after = steps.find((step) => step.id === constraint.stepId);
+    if (!before || !after) return [violation(constraint, "MISSING_DEPENDENCY", "A required dependency step is missing.", [constraint.predecessorId, constraint.stepId])];
+    return before.endMinute > after.startMinute ? [violation(constraint, "DEPENDENCY_ORDER", `${before.label} must finish before ${after.label} starts.`, [before.id, after.id])] : [];
+  },
+  TASK_DEADLINE(constraint, steps) {
+    const step = steps.find((item) => item.id === constraint.stepId);
+    if (!step) return [violation(constraint, "MISSING_TASK", "A deadline-bound task is missing.", [constraint.stepId])];
+    return step.endMinute > constraint.atMinute ? [violation(constraint, "TASK_LATE", `${step.label} finishes after ${toClock(constraint.atMinute)}.`, [step.id], { atMinute: constraint.atMinute })] : [];
+  },
   MAX_CONCURRENT_POWER(constraint, steps) {
     const powered = steps.filter((step) => step.powerWatts);
     const boundaries = [...new Set(powered.flatMap((step) => [step.startMinute, step.endMinute]))].sort((a, b) => a - b);
@@ -40,7 +54,7 @@ const evaluators = {
     if (!departure) findings.push(violation(constraint, "MISSING_DEPARTURE", "The routine has a departure deadline but no departure step.", []));
     if (departure && departure.startMinute > effective) findings.push(violation(constraint, "LATE_DEPARTURE", `Departure at ${departure.startTime} misses the effective ${toClock(effective)} deadline.`, [departure.id], { effectiveDeadlineMinute: effective }));
     const actualDeparture = Math.min(departure?.startMinute ?? effective, effective);
-    for (const step of steps.filter((item) => item.requiredForDeparture && item.endMinute > actualDeparture)) findings.push(violation(constraint, "READINESS_MISSED", `${step.label} ends at ${step.endTime}, after the required ${toClock(actualDeparture)} departure.`, [step.id, departure?.id].filter(Boolean), { effectiveDeadlineMinute: actualDeparture }));
+    for (const step of steps.filter((item) => item.requiredForDeparture && !item.departure && item.endMinute > actualDeparture)) findings.push(violation(constraint, "READINESS_MISSED", `${step.label} ends at ${step.endTime}, after the required ${toClock(actualDeparture)} departure.`, [step.id, departure?.id].filter(Boolean), { effectiveDeadlineMinute: actualDeparture }));
     return findings;
   },
   EARLIEST_START(constraint, steps, context) {

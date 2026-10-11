@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { confirmActivation } from "../public/approvalDialog.js";
+import { confirmActivation, confirmAction } from "../public/approvalDialog.js";
 
 class Dialog extends EventTarget {
   returnValue = "";
@@ -31,4 +31,13 @@ test("approval requires confirmation; later Escape cannot reuse the previous con
   const cancelled = confirmActivation(dialog, copy, request);
   dialog.close("cancel");
   assert.equal(await cancelled, false);
+});
+
+test("rollback and household-save reviews cannot inherit prior approval", async () => {
+  const dialog = new Dialog(); const copy = {};
+  const rollback = confirmAction(dialog,copy,{title:"Rollback",message:"Restore virtual snapshot",confirmLabel:"Confirm rollback"});
+  dialog.close("confirm"); assert.equal(await rollback,true);
+  const save = confirmAction(dialog,copy,{title:"Save",message:"Review household",confirmLabel:"Confirm profile save"});
+  assert.equal(copy.textContent,"Review household"); assert.equal(dialog.returnValue,"");
+  dialog.close("cancel"); assert.equal(await save,false);
 });
