@@ -25,15 +25,13 @@ test-results/
 playwright-report/
 .eslintcache
 
-# Private working notes (keep reproducible public documentation tracked)
+# Local documentation and private working notes
+/docs/
+/integration.md
 /overview.md
 /prompt.md
 /progress.md
-/docs/competition-fit.md
-/docs/demo-script.md
-/docs/submission-checklist.md
 /notes/
-/docs/local/
 
 # Local captures, scratch work, backups, and temporary files
 /screenshots/
