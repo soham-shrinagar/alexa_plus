@@ -21,6 +21,19 @@ export class PrismaRepository {
     return mapDates(await this.prisma.rehearseProposal.create({ data: { userId: user.id, scenarioId: input.scenarioId, goal: input.goal, status: input.status ?? "DRAFT", version: input.version ?? 1, routine: json(input.routine), microTwin: json(input.microTwin), context: json(input.context) } }));
   }
 
+  // Reuse the existing per-user JSON preference table; no migration or legacy
+  // table replacement is needed for configurable household profiles.
+  async listHouseholds(externalUserId) {
+    const user = await this.user(externalUserId);
+    const rows = await this.prisma.userPreference.findMany({ where: { userId: user.id, key: { startsWith: "rehearse.household." } } });
+    return rows.map((row) => row.value);
+  }
+  async saveHousehold(externalUserId, profile) {
+    const user = await this.user(externalUserId); const key = `rehearse.household.${profile.id}`;
+    const row = await this.prisma.userPreference.upsert({ where: { userId_key: { userId: user.id, key } }, create: { userId: user.id, key, value: json(profile), source: "explicit" }, update: { value: json(profile), source: "explicit" } });
+    return row.value;
+  }
+
   async getProposal(externalUserId, id) {
     const user = await this.user(externalUserId); const row = await this.prisma.rehearseProposal.findFirst({ where: { id, userId: user.id } });
     if (!row) throw forbidden(); return mapDates(row);

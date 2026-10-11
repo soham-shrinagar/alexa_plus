@@ -25,13 +25,25 @@
 
     <section class="workspace">
       <aside class="control-panel">
-        <div class="section-heading"><span>01</span><div><h2>Describe the outcome</h2><p>The school morning is a demo, not a product limit.</p></div></div>
+        <div class="section-heading"><span>01</span><div><h2>Describe the outcome</h2><p>Gemini proposes. The verifier checks. You approve.</p></div></div>
+        <label for="household">Household profile</label>
+        <select id="household"><option value="school-morning">School morning</option></select>
+        <div class="form-grid">
+          <div><label for="planner">Planner</label><select id="planner"><option value="gemini">Gemini · real LLM</option><option value="fixture">School fixture · offline</option></select></div>
+          <div><label for="data-mode">Environment</label><select id="data-mode"><option value="live">Live weather</option><option value="fixture">Labelled fixture</option><option value="none">No external data</option></select></div>
+          <div><label for="planning-date">Forecast date</label><input id="planning-date" type="date"></div>
+          <div><label for="planning-time">Forecast hour</label><input id="planning-time" type="time" value="07:00"></div>
+        </div>
+        <label class="check-label"><input id="include-traffic" type="checkbox"> Include optional TomTom traffic</label>
+        <p id="provider-status" class="status">Checking provider configuration…</p>
         <label for="goal">Household goal</label>
         <textarea id="goal" rows="7">Make our school mornings run themselves. We need to leave by 7:45. Don’t wake the baby before 7, don’t run the kettle and water heater together, and leave 15 minutes earlier when it rains.</textarea>
         <div class="actions">
-          <button id="guided" class="primary" disabled>Run the guided rehearsal <span>→</span></button>
-          <button id="reset" class="secondary">Reset</button>
+          <button id="ask" class="primary" disabled>Ask Rehearse <span>→</span></button>
+          <button id="reset" class="secondary">Reset session</button>
         </div>
+        <button id="guided" class="secondary full-width" disabled>Run the labelled school fixture demo</button>
+        <p class="privacy-note">Requests, household details, and selected context go to Gemini. Coordinates go to the selected weather/traffic provider. Use synthetic household data for the public demo.</p>
         <p id="status" class="status" role="status">Ready to compile a routine.</p>
 
         <div class="stepper" id="stepper">
@@ -40,14 +52,28 @@
           <button data-action="repair" disabled><b>3</b><span>Repair<small>Resolve safe changes</small></span></button>
           <button data-action="revise" disabled><b>4</b><span>Revise<small>Confirm one exception</small></span></button>
           <button data-action="approve" disabled><b>5</b><span>Approve<small>Bind the exact version</small></span></button>
-          <button data-action="disrupt" disabled><b>6</b><span>Adapt<small>Handle live disruption</small></span></button>
-          <button data-action="rollback" disabled><b>7</b><span>Rollback<small>Restore the snapshot</small></span></button>
+          <button data-action="disrupt" disabled><b>6</b><span>Disrupt<small>Simulated event</small></span></button>
+          <button data-action="recover" disabled><b>7</b><span>Recover<small>Reverify approved actions</small></span></button>
+          <button data-action="rollback" disabled><b>8</b><span>Rollback<small>Restore the snapshot</small></span></button>
         </div>
         <div class="revision-input">
           <label for="revision">Your routine revision</label>
           <textarea id="revision" rows="3">On Fridays, Maya can wake at 6:50, but keep everything else unchanged.</textarea>
-          <p class="status">This demo understands a Maya start-time exception. Friday exceptions apply only on Friday.</p>
+          <p class="status">Gemini revises known step timing. Earlier-person exceptions require explicit named permission. Power and quiet policies stay intact.</p>
         </div>
+        <div class="revision-input">
+          <label for="event-type">Simulated disruption</label>
+          <select id="event-type"><option value="DEVICE_UNAVAILABLE">Device unavailable</option><option value="TRAVEL_DELAY">Total travel delay</option><option value="WEATHER_CHANGED">Rain starts</option></select>
+          <label for="event-capability">Approved capability</label><select id="event-capability"></select>
+          <label for="event-delay">Total delay (minutes)</label><input id="event-delay" type="number" min="0" max="60" value="5">
+          <p class="status">These controls inject synthetic events, not device telemetry. Recover clears the selected failure, delay, or rain event and reverifies.</p>
+        </div>
+        <details class="household-editor">
+          <summary>Configure / export household</summary>
+          <p class="status">Copy an example with a new ID and edit its JSON. Save affects only this demo identity. Reset creates a new identity; export first.</p>
+          <label for="household-json">Household JSON</label><textarea id="household-json" rows="12" spellcheck="false"></textarea>
+          <div class="actions"><button id="save-household" class="secondary" disabled>Review and save</button><button id="export-household" class="secondary" disabled>Export JSON</button></div>
+        </details>
       </aside>
 
       <section class="stage" aria-live="polite">
@@ -62,6 +88,10 @@
         <div class="timeline-card">
           <div class="card-title"><h3>Temporal rehearsal</h3><span>06:00 — 08:00</span></div>
           <div id="timeline" class="timeline empty"><p>Compile the goal to see the proposed sequence.</p></div>
+        </div>
+        <div class="split">
+          <div class="card"><div class="card-title"><h3>Assistant / extracted tasks</h3><span id="planner-label">No planner run</span></div><div id="assistant-output" class="findings"><p class="status">Ask a household question or describe a new goal. The assistant discovers real MCP tools; activation always needs your dialog confirmation.</p></div></div>
+          <div class="card"><div class="card-title"><h3>External evidence</h3><span>source + freshness</span></div><div id="evidence" class="findings"><p class="status">No provider observation yet. Fixture weather is never labelled live.</p></div><button id="refresh-environment" class="secondary" disabled>Refresh and reverify proposal</button></div>
         </div>
 
         <div class="split">

@@ -4,9 +4,11 @@
   "type": "module",
   "engines": { "node": ">=22.9.0" },
   "scripts": {
+    "setup": "node scripts/setup.js",
     "test": "npm --prefix apps/mcp-server test",
     "check": "node scripts/check.js",
     "test:neon": "npm --prefix apps/mcp-server run test:neon",
+    "smoke:providers": "node scripts/providerSmoke.js",
     "prisma:validate": "node scripts/prismaValidate.js",
     "prisma:generate": "node scripts/prisma.js generate",
     "prisma:migrate": "node scripts/prisma.js migrate deploy",

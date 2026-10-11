@@ -1,85 +1,51 @@
 # MCP tool contract
 
-All tools require a bearer token with `mcp:tools` and a user identity. Successful calls return both text content and structured content. Domain failures return `isError: true` with `{ error: { code, message, retryable } }`.
+Streamable HTTP endpoint: `/mcp`; protocol `2025-11-25`. All 18 tools require bearer authentication, `mcp:tools`, and a user identity. Results include text and structured content; application errors use `isError: true` with `error.code/message/retryable`. IDs are opaque UUIDs or CUIDs.
 
-Object identifiers are opaque strings: memory uses UUIDs and Prisma uses CUIDs. Do not assume a UUID-only contract. Proposal-changing tools reject active, suspended, and rolled-back versions.
+| Tool | Main inputs | Effect |
+| --- | --- | --- |
+| household.list_profiles | none | Built-in plus user-owned profiles |
+| household.configure | profile, confirmed | Confirmed per-user profile save |
+| home.list_capabilities | scenarioId | Declared entities/capabilities |
+| household.get_constraints | scenarioId | Trusted policies and fixture context |
+| weather.get_forecast | latitude, longitude, date?, time? | Real hourly Open-Meteo evidence |
+| travel.get_estimate | origin, destination | Optional current TomTom traffic route |
+| assistant.respond | message, proposalId?, planning options | Gemini chooses one permitted next operation |
+| routine.compile | goal, mode, planning options | Inert candidate or clarification |
+| simulation.run | proposalId | Persist deterministic findings |
+| routine.repair | proposalId | Timing repair + version + simulation |
+| routine.revise | proposalId, instruction, mode | Explicit timing/permission revision |
+| routine.refresh_environment | proposalId | Live refresh + version + reverify |
+| routine.request_activation | proposalId | Verified, fresh, five-minute bound approval |
+| routine.activate | proposalId, approvalId, confirmed, idempotencyKey | Simulated activation and snapshot |
+| routine.get_status | proposalId | Owned proposal/runtime |
+| routine.inject_event | activationId, event | Simulated disruption/recovery + verification |
+| routine.rollback | activationId, confirmed | Stop and restore virtual snapshot |
+| audit.get_trace | proposalId | User-owned ordered audit |
 
-## Read tools
+## Planning options
 
-### `home.list_capabilities`
+`scenarioId` selects a built-in or custom household ID. `mode=gemini` uses the model; `mode=fixture` uses only the school fixture. For backward-compatible MCP callers, compile/revise default to fixture: always explicitly supply gemini for an LLM request. The UI defaults to Gemini.
 
-Input: optional `scenarioId`. Returns scenario metadata, people, devices/capabilities, and environment.
+`dataMode` is live (default), fixture, or none. Optional `date` is local YYYY-MM-DD, `time` is HH:MM, and `includeTraffic` enables optional TomTom with a configured route/key. Fixture planner mode ignores provider options and always labels the synthetic school scenario.
 
-### `household.get_constraints`
+Assistant allowlist: compile, simulate, repair, Gemini revise, get status, request approval. Activation, rollback, events, and household configuration are never model-executed. The browser may present the returned approval request, but still requires a real confirmation action.
 
-Input: optional `scenarioId`. Returns defaults and current demo environment.
+Clarification responses contain `needsClarification: true`, questions, and no new proposal. Send a complete revised request including the missing details; the assistant uses current proposal context, not a persistent free-form chat-memory service.
 
-### `routine.get_status`
+## Events
 
-Input: `proposalId`. Returns the user-owned proposal and active runtime if one exists.
+- DEVICE_UNAVAILABLE: capability referenced by the approved routine.
+- DEVICE_RECOVERED: capability referenced by the approved routine.
+- TRAVEL_DELAY: total minutes, integer 0–60; zero clears the delay.
+- WEATHER_CHANGED: raining boolean.
 
-### `audit.get_trace`
+All events are explicitly synthetic in the UI. Recovery cannot invent new actions or bypass verification. A remaining critical violation leaves the runtime suspended.
 
-Input: `proposalId`. Returns ordered lifecycle audit events owned by the caller.
+## Consistency
 
-## Proposal tools
+Active/suspended/rolled-back proposals reject edits. Same-key activation retries return the original result. Other versions cannot use stale approvals. Live refresh and Gemini revisions detect intervening version changes. The tool catalog passed to Gemini is generated from these registered definitions, not a parallel hard-coded list.
 
-### `routine.compile`
+Stable errors include LLM_NOT_CONFIGURED, LLM_INVALID_OUTPUT, LLM_INVALID_PLAN, PROVIDER_AUTH_FAILED, PROVIDER_RATE_LIMITED, PROVIDER_UNAVAILABLE, WEATHER_DATA_MISSING, TRAFFIC_NOT_CONFIGURED, ENVIRONMENT_STALE, STALE_PROPOSAL, HOUSEHOLD_NOT_FOUND, INVALID_HOUSEHOLD, VERIFICATION_REQUIRED, CONFIRMATION_REQUIRED, PROPOSAL_LOCKED, FORBIDDEN, and DATABASE_UNAVAILABLE.
 
-Input: `goal`, optional `scenarioId`. Creates version 1 proposal, routine, and micro-twin. It does not claim the proposal is safe.
-
-### `simulation.run`
-
-Input: `proposalId`. Stores a trace and violations for the latest proposal version.
-
-### `routine.repair`
-
-Input: `proposalId`. Applies only objective repair strategies, increments version, re-simulates, and returns any decisions that still require the user.
-
-### `routine.revise`
-
-Input: `proposalId`, `instruction`. The demo supports an explicit Maya start-time permission, optionally Friday-only. A Friday exception does not overwrite the base start boundary for other days. Unsupported revisions fail with `UNSUPPORTED_REVISION`.
-
-## Runtime tools
-
-### `routine.request_activation`
-
-Input: `proposalId`. Re-simulates defensively and refuses failed proposals. Returns a five-minute, single-use approval bound to proposal ID/version.
-
-### `routine.activate`
-
-Input: `proposalId`, `approvalId`, `confirmed`, `idempotencyKey`. Consumes the matching approval, captures a snapshot, and starts the simulated runtime.
-
-Same-key retries return the original activation; concurrent calls consume approval only once. Approval and runtime writes share one transaction.
-
-### `routine.inject_event`
-
-Input: `activationId` and one event:
-
-- `{ type: "DEVICE_UNAVAILABLE", capability }`
-- `{ type: "TRAVEL_DELAY", minutes }`
-- `{ type: "WEATHER_CHANGED", raining }`
-
-The updated runtime is always re-simulated and audited.
-
-Travel delay is the current total delay, not an increment: repeating a five-minute report does not advance departure twice. Weather changes recalculate the deadline. A failed simulation marks the activation/proposal `SUSPENDED` and suspends virtual device schedules; a subsequent safe event can recover it.
-
-### `routine.rollback`
-
-Input: `activationId`, `confirmed`. Stops an active or suspended user-owned runtime, restores virtual device states/context, clears the scheduled routine, and returns the snapshot. This is not a physical device undo API.
-
-## Stable error examples
-
-- `INSUFFICIENT_SCOPE`
-- `USER_CONTEXT_REQUIRED`
-- `SCENARIO_NOT_FOUND`
-- `UNSUPPORTED_REVISION`
-- `VERIFICATION_REQUIRED`
-- `CONFIRMATION_REQUIRED`
-- `APPROVAL_EXPIRED`
-- `INVALID_APPROVAL`
-- `ROUTINE_NOT_ACTIVE`
-- `FORBIDDEN`
-- `DATABASE_UNAVAILABLE`
-- `PROPOSAL_LOCKED`
-- `IDEMPOTENCY_CONFLICT`
+Provider HTTP endpoints are not MCP tools by themselves; adapters normalize evidence and tools expose the actual functionality. See [providers.md](providers.md).

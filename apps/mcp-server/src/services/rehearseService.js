@@ -8,20 +8,47 @@ import { repairRoutine } from "../domain/repairEngine.js";
 import { reviseRoutine } from "../domain/revisionEngine.js";
 import { adaptRoutine } from "../domain/runtimeEngine.js";
 import { ApprovalService } from "./approvalService.js";
+import { builtInHouseholds, builtInHousehold, validateHousehold } from "../domain/household.js";
+import { applyRevision } from "./plannerService.js";
+import { EnvironmentProvider } from "../providers/environment.js";
 
 export class RehearseService {
-  constructor({ repository, transactional = true }) {
+  constructor({ repository, planner, environment = new EnvironmentProvider(), toolCatalog = [], transactional = true }) {
     this.repository = repository;
+    this.planner = planner; this.environment = environment; this.toolCatalog = toolCatalog;
     this.approvals = new ApprovalService(repository);
     // One lifecycle mutation includes its evidence and audit writes. The lock
     // also prevents concurrent calls from consuming one approval twice.
-    if (transactional) for (const name of ["compile", "simulate", "repair", "revise", "requestActivation", "activate", "injectEvent", "rollback"]) {
+    if (transactional) for (const name of ["simulate", "repair", "revise", "requestActivation", "activate", "injectEvent", "rollback"]) {
       this[name] = (userId, ...args) => repository.withUserLock(userId, (transactionRepository) => {
-        const service = new RehearseService({ repository: transactionRepository, transactional: false });
+        const service = new RehearseService({ repository: transactionRepository, planner, environment, toolCatalog: this.toolCatalog, transactional: false });
         return service[name](userId, ...args);
       });
     }
   }
+
+  async households(userId) { return { profiles: [...builtInHouseholds(), ...await this.repository.listHouseholds(userId)] }; }
+  async household(userId, id = "school-morning") {
+    const profile = builtInHousehold(id) ?? (await this.repository.listHouseholds(userId)).find((item) => item.id === id);
+    if (!profile) throw new AppError("HOUSEHOLD_NOT_FOUND", "No household profile is available for that ID.", { status: 404 });
+    return validateHousehold(profile);
+  }
+  async configureHousehold(userId, input, confirmed) {
+    if (!confirmed) throw new AppError("CONFIRMATION_REQUIRED", "Explicit confirmation is required to save a household profile.", { status: 409 });
+    const profile = validateHousehold(input);
+    if (builtInHousehold(profile.id)) throw new AppError("RESERVED_HOUSEHOLD_ID", "Use a new ID for a custom household; built-in examples cannot be overwritten.", { status: 400 });
+    return this.repository.withUserLock(userId, async (repository) => {
+      const saved = await repository.saveHousehold(userId, profile);
+      await repository.addAuditEvent(userId, { type: "HOUSEHOLD_CONFIGURED", details: { householdId: profile.id }, proposalId: null, activationId: null });
+      return { profile: saved, message: "Saved for this user. Existing proposal snapshots were not changed." };
+    });
+  }
+
+  async householdCapabilities(userId, id) {
+    const profile = await this.household(userId, id);
+    return { household: { id: profile.id, name: profile.name }, people: profile.people, devices: profile.devices, location: profile.location, route: profile.route, personCapabilities: ["prepare_person","depart","manual_task"] };
+  }
+  async householdPolicies(userId, id) { const profile = await this.household(userId, id); return { policies: profile.policies, environment: profile.environment }; }
 
   capabilities(scenarioId = "school-morning") {
     const scenario = requireScenario(scenarioId);
@@ -33,14 +60,82 @@ export class RehearseService {
     return { defaults: scenario.defaults, environment: scenario.environment, note: "These inputs seed a proposal; the compiler stores the exact constraints used with each version." };
   }
 
-  async compile(userId, { goal, scenarioId = "school-morning" }) {
+  async compile(userId, { goal, scenarioId = "school-morning", mode = "fixture", dataMode = "live", date, time, includeTraffic = false }) {
+    if (mode === "gemini") {
+      if (!this.planner) throw new AppError("LLM_NOT_CONFIGURED", "Gemini planning is not configured. Choose the fixture explicitly for an offline demo.", { status: 503 });
+      const profile = await this.household(userId, scenarioId);
+      const context = await this.environment.context(profile, { dataMode, date, time, includeTraffic });
+      // Network calls occur outside a database transaction and never hold a user lock.
+      const result = await this.planner.plan({ goal, profile, context, tools: this.toolCatalog });
+      if (!result.routine) return { ...result, needsClarification: true };
+      result.routine.model = this.planner.provider.model;
+      const microTwin = buildMicroTwin({ household: { people: profile.people, devices: profile.devices } }, result.routine);
+      return this.repository.withUserLock(userId, async (repository) => {
+        const proposal = await repository.createProposal(userId, { scenarioId, goal, routine: result.routine, microTwin, context });
+        await repository.addAuditEvent(userId, { proposalId: proposal.id, type: "PROPOSAL_COMPILED", details: { parser: "gemini", model: this.planner.provider.model, tasks: result.routine.extractedTasks, recommendedTools: result.routine.recommendedTools, dataMode }, activationId: null });
+        return { proposal, explanation: result.explanation, planner: "gemini", evidence: context.evidence };
+      });
+    }
+    if (mode !== "fixture") throw new AppError("INVALID_PLANNER_MODE", "Choose gemini or the explicit fixture mode.", { status: 400 });
     const scenario = requireScenario(scenarioId);
     const parsed = parseRoutineGoal(goal, scenario.defaults);
     const routine = compileRoutine(parsed, scenario);
     const microTwin = buildMicroTwin(scenario, routine);
-    const proposal = await this.repository.createProposal(userId, { scenarioId, goal, routine, microTwin, context: routine.context });
-    await this.audit(userId, proposal.id, "PROPOSAL_COMPILED", { parser: parsed.parser, assumptions: parsed.assumptions, includedEntities: microTwin.people.length + microTwin.devices.length });
-    return { proposal, explanation: "Compiled a deterministic candidate and a proposal-scoped micro-twin. No device action has run." };
+    return this.repository.withUserLock(userId, async (repository) => {
+      const proposal = await repository.createProposal(userId, { scenarioId, goal, routine, microTwin, context: routine.context });
+      await repository.addAuditEvent(userId, { proposalId: proposal.id, type: "PROPOSAL_COMPILED", details: { parser: parsed.parser, assumptions: parsed.assumptions, includedEntities: microTwin.people.length + microTwin.devices.length }, activationId: null });
+      return { proposal, explanation: "Explicit deterministic school fixture. No LLM or live provider was used; no device action has run.", planner: "fixture" };
+    });
+  }
+
+  async reviseWithGemini(userId, proposalId, instruction) {
+    const proposal = await this.repository.getProposal(userId, proposalId); assertEditable(proposal);
+    if (!proposal.routine.householdProfile || !this.planner) throw new AppError("LLM_REVISION_UNAVAILABLE", "Compile a Gemini proposal before using a general revision.", { status: 409 });
+    const revision = await this.planner.revise({ instruction, routine: proposal.routine });
+    const result = applyRevision(proposal.routine, revision, instruction);
+    if (!result.routine) return { ...result, needsClarification: true };
+    return this.repository.withUserLock(userId, async (repository) => {
+      const current = await repository.getProposal(userId, proposalId); assertEditable(current);
+      if (current.version !== proposal.version) throw new AppError("STALE_PROPOSAL", "The proposal changed while Gemini was planning. Retry against the latest version.", { status: 409 });
+      const simulationResult = simulateRoutine(result.routine);
+      const updated = await repository.updateProposal(userId, proposalId, { routine: result.routine, microTwin: { ...current.microTwin, constraints: result.routine.constraints }, version: current.version + 1, status: simulationResult.status === "PASSED" ? "VERIFIED" : "NEEDS_REPAIR" });
+      const simulation = await repository.createSimulation(userId, simulationInput(updated, simulationResult));
+      await repository.addAuditEvent(userId, { proposalId, type: "PROPOSAL_REVISED", details: { instruction, changes: result.changes, parser: "gemini" }, activationId: null });
+      return { proposal: updated, simulation, changes: result.changes, explanation: result.explanation };
+    });
+  }
+
+  async refreshEnvironment(userId, proposalId) {
+    const proposal = await this.repository.getProposal(userId, proposalId); assertEditable(proposal);
+    if (!proposal.routine.householdProfile || proposal.context.dataMode !== "live") throw new AppError("LIVE_CONTEXT_REQUIRED", "Compile a Gemini proposal with live data before refreshing its context.", { status: 409 });
+    const context = await this.environment.context(proposal.routine.householdProfile, { dataMode: "live", date: proposal.context.planningDate, time: proposal.context.planningTime, includeTraffic: proposal.context.includeTraffic });
+    return this.repository.withUserLock(userId, async (repository) => {
+      const current = await repository.getProposal(userId, proposalId); assertEditable(current);
+      if (current.version !== proposal.version) throw new AppError("STALE_PROPOSAL", "The proposal changed during refresh. Retry.", { status: 409 });
+      const routine = { ...current.routine, context }; const result = simulateRoutine(routine);
+      const updated = await repository.updateProposal(userId, proposalId, { routine, context, version: current.version + 1, status: result.status === "PASSED" ? "VERIFIED" : "NEEDS_REPAIR" });
+      const simulation = await repository.createSimulation(userId, simulationInput(updated, result));
+      await repository.addAuditEvent(userId, { proposalId, type: "ENVIRONMENT_REFRESHED", details: { evidence: context.evidence }, activationId: null });
+      return { proposal: updated, simulation, evidence: context.evidence };
+    });
+  }
+
+  async respond(userId, input) {
+    if (!this.planner) throw new AppError("LLM_NOT_CONFIGURED", "Configure Gemini before using the conversational assistant.", { status: 503 });
+    const proposal = input.proposalId ? await this.repository.getProposal(userId, input.proposalId) : null;
+    const household = await this.household(userId, input.scenarioId ?? proposal?.scenarioId);
+    const decision = await this.planner.decide({ message: input.message, proposal, household, tools: this.toolCatalog });
+    if (decision.operation === "clarify" || decision.questions.length) return { reply: decision.reply, questions: decision.questions, needsClarification: true };
+    const calls = {
+      plan: () => this.compile(userId, { ...input, goal: input.message, mode: "gemini" }),
+      simulate: () => this.simulate(userId, proposal.id), repair: () => this.repair(userId, proposal.id),
+      revise: () => this.reviseWithGemini(userId, proposal.id, input.message), status: () => this.status(userId, proposal.id),
+      request_approval: () => this.requestActivation(userId, proposal.id)
+    };
+    if (!Object.hasOwn(calls, decision.operation) || (!proposal && decision.operation !== "plan")) throw new AppError("ASSISTANT_ACTION_BLOCKED", "The assistant selected an unavailable operation. No action ran.", { status: 409 });
+    const toolNames = { plan: "routine.compile", simulate: "simulation.run", repair: "routine.repair", revise: "routine.revise", status: "routine.get_status", request_approval: "routine.request_activation" };
+    const result = await calls[decision.operation]();
+    return { reply: decision.reply, selectedTool: toolNames[decision.operation], operation: decision.operation, result, needsClarification: result.needsClarification ?? false };
   }
 
   async simulate(userId, proposalId) {
@@ -77,6 +172,7 @@ export class RehearseService {
     const proposal = await this.repository.getProposal(userId, proposalId);
     assertEditable(proposal);
     const verification = simulateRoutine(proposal.routine, proposal.context);
+    assertFreshContext(proposal.context);
     if (verification.status !== "PASSED") throw new AppError("VERIFICATION_REQUIRED", "Repair and re-simulate the latest proposal before activation.", { status: 409 });
     const approval = await this.approvals.request(userId, "ACTIVATE_ROUTINE", activationPayload(proposal));
     await this.repository.updateProposal(userId, proposalId, { status: "AWAITING_APPROVAL" });
@@ -93,6 +189,7 @@ export class RehearseService {
       return { activation: previous, reused: true, message: "The original activation was returned; no action was repeated." };
     }
     assertEditable(proposal);
+    assertFreshContext(proposal.context);
     if (simulateRoutine(proposal.routine, proposal.context).status !== "PASSED") throw new AppError("VERIFICATION_REQUIRED", "The latest proposal must pass verification before activation.", { status: 409 });
     if (await this.repository.getActiveActivationForProposal(userId, proposalId)) throw new AppError("ROUTINE_ALREADY_ACTIVE", "Roll back the existing runtime before activating another version.", { status: 409 });
     const payload = activationPayload(proposal);
@@ -104,7 +201,7 @@ export class RehearseService {
       deviceStates[step.targetId].status = "SCHEDULED";
       deviceStates[step.targetId].scheduledActions.push(step.id);
     }
-    const activation = await this.repository.createActivation(userId, { proposalId, proposalVersion: proposal.version, idempotencyKey, snapshot, runtimeState: { routine: proposal.routine, context: proposal.context, deviceStates, lastEvent: null } });
+    const activation = await this.repository.createActivation(userId, { proposalId, proposalVersion: proposal.version, idempotencyKey, snapshot, runtimeState: { routine: proposal.routine, approvedRoutine: proposal.routine, context: proposal.context, deviceStates, lastEvent: null } });
     await this.repository.updateProposal(userId, proposalId, { status: "ACTIVE" });
     await this.audit(userId, proposalId, "ROUTINE_ACTIVATED", { activationId: activation.id, proposalVersion: proposal.version }, activation.id);
     return { activation, message: "Routine activated in the demo runtime. Device effects remain simulated." };
@@ -119,14 +216,16 @@ export class RehearseService {
   async injectEvent(userId, activationId, event) {
     const activation = await this.repository.getActivation(userId, activationId);
     if (!["ACTIVE", "SUSPENDED"].includes(activation.status)) throw new AppError("ROUTINE_NOT_ACTIVE", "Runtime events require an active or suspended routine.", { status: 409 });
-    const result = adaptRoutine(activation.runtimeState.routine, event);
+    const approvedRoutine = activation.runtimeState.approvedRoutine ?? (await this.repository.getProposal(userId, activation.proposalId)).routine;
+    if (["DEVICE_UNAVAILABLE","DEVICE_RECOVERED"].includes(event.type) && !approvedRoutine.steps.some((step) => step.capability === event.capability)) throw new AppError("UNKNOWN_RUNTIME_CAPABILITY", "Choose a capability referenced by this approved routine.", { status: 400 });
+    const result = adaptRoutine(activation.runtimeState.routine, event, approvedRoutine);
     const status = result.simulation.status === "PASSED" ? "ACTIVE" : "SUSPENDED";
     const deviceStates = structuredClone(activation.runtimeState.deviceStates);
     for (const [deviceId, device] of Object.entries(deviceStates)) {
       device.scheduledActions = result.routine.steps.filter((step) => step.targetId === deviceId).map((step) => step.id);
       device.status = status === "SUSPENDED" ? "SUSPENDED" : device.scheduledActions.length ? "SCHEDULED" : "IDLE";
     }
-    const updated = await this.repository.updateActivation(userId, activationId, { status, runtimeState: { routine: result.routine, context: result.routine.context, deviceStates, lastEvent: event } });
+    const updated = await this.repository.updateActivation(userId, activationId, { status, runtimeState: { routine: result.routine, approvedRoutine, context: result.routine.context, deviceStates, lastEvent: event } });
     await this.repository.updateProposal(userId, activation.proposalId, { status });
     await this.repository.createSimulation(userId, { proposalId: activation.proposalId, proposalVersion: activation.proposalVersion, status: result.simulation.status, violations: result.simulation.violations, trace: result.simulation.trace, summary: { ...result.simulation.summary, runtimeEvent: event } });
     await this.audit(userId, activation.proposalId, "RUNTIME_ADAPTED", { event, changes: result.changes, status: result.simulation.status }, activationId);
@@ -152,4 +251,8 @@ function activationPayload(proposal) { return { proposalId: proposal.id, proposa
 function simulationInput(proposal, result) { return { proposalId: proposal.id, proposalVersion: proposal.version, status: result.status, violations: result.violations, trace: result.trace, summary: result.summary }; }
 function assertEditable(proposal) {
   if (["ACTIVE", "SUSPENDED", "ROLLED_BACK"].includes(proposal.status)) throw new AppError("PROPOSAL_LOCKED", "Compile a new proposal after activation or rollback; the approved version is immutable.", { status: 409 });
+}
+function assertFreshContext(context) {
+  if (context.dataMode !== "live") return;
+  if (!context.evidence?.length || context.evidence.some(item => !Number.isFinite(Date.parse(item.retrievedAt)) || Date.now() - Date.parse(item.retrievedAt) > 900000 || Date.parse(item.retrievedAt) > Date.now() + 60000)) throw new AppError("ENVIRONMENT_STALE", "Live evidence is missing or older than 15 minutes. Refresh and reverify before approval.", { status: 409 });
 }

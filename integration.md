@@ -4,6 +4,8 @@ This file separates what already works locally from what requires your accounts 
 
 Current status: a real MCP server and Neon persistence, with a browser-simulated Alexa+ experience. There is no real Alexa/Echo connection. The bundled browser does not need an OAuth client; adding client credentials alone cannot complete production account linking. OAuth metadata, PKCE, and token checks are implemented, but production sign-in/consent and refresh-token issuance remain unfinished. A real Alexa+ connection would additionally require Amazon access and confirmed onboarding instructions; it is not enabled by adding environment variables. See [docs/security.md](docs/security.md) for security boundaries.
 
+Gemini task extraction/tool selection, configurable household profiles, live Open-Meteo weather, and an optional TomTom routing adapter are implemented. Configure the server-side Gemini key before using the default LLM UI. Weather needs no key for non-commercial use; traffic needs an optional separate key/route. See [docs/providers.md](docs/providers.md) for exact credential, privacy, quota, and provider setup instructions. No database migration is needed for profiles: they reuse user-scoped JSON preferences.
+
 ## A. Local demo: required now
 
 ### 1. Install and verify
@@ -19,6 +21,8 @@ npm run prisma:validate
 ```
 
 Reason: this proves the deterministic engine, service lifecycle, MCP transport, security checks, and generated Prisma client all agree.
+
+Use PowerShell for this Windows checkout. Stop the current server before any install/generate command; its native Prisma DLL stays locked while loaded. Do not run WSL and Windows installs against the same dependency folders. If a command fails, stop the sequence instead of continuing with a partial install.
 
 ### 2. Start in safe demo mode
 
@@ -49,6 +53,8 @@ Use individual steps once before using the guided button:
 5. Approve in the dialog and activate.
 6. Adapt to device failure and travel delay.
 7. Roll back.
+
+For the main submission, also select Work commute or a custom profile, Gemini, and live weather. Show actual extracted tasks, model-selected MCP operation, and timestamped provider evidence, then simulate/repair/approve. Fail a required capability to show SUSPENDED, recover it to reverify, and roll back. The labelled guided school demo is the deterministic backup, not a substitute for showing the LLM path.
 
 Reason: manual pacing makes it easy to explain why the system pauses instead of silently choosing for the family.
 
@@ -147,7 +153,7 @@ Check:
 - `GET /.well-known/oauth-protected-resource` references the exact public `/mcp` URL;
 - an unauthenticated MCP request returns 401;
 - initialize returns `Mcp-Session-Id`;
-- the session can list all twelve tools;
+- the session can list all 18 tools, including assistant, household configuration, weather, traffic, and environment refresh;
 - logs contain request IDs but no bearer tokens;
 - a restart does not lose proposals when Prisma mode is used.
 
@@ -160,7 +166,7 @@ In the written submission explain:
 - Alexa+ is the conversational orchestrator envisioned to call this MCP server;
 - the browser simulates the Alexa+ conversation and exposes internal evidence visually;
 - the server and protocol interaction are real;
-- household device effects are deliberately simulated because public Alexa+ tooling is unavailable and safety is central to the concept.
+- household device effects are deliberately simulated; an actual Amazon connection is not configured or verified for this project.
 
 ## E. GitHub and Devpost
 
@@ -212,6 +218,9 @@ Store the result in a secret manager. Do not paste it into a tracked Markdown fi
 ## G. Final owner checklist
 
 - [ ] Watch one complete local guided run.
+- [ ] Rotate the chat-exposed Gemini key, restart, and confirm account quota/budget.
+- [ ] Rehearse the real Gemini work-household flow and inspect extracted tasks plus live weather attribution/timestamps.
+- [ ] Supply an optional TomTom key and route only if live traffic is wanted; mocked adapter tests do not prove live access.
 - [ ] Confirm the narrative and names you want in the video.
 - [ ] Decide local-only versus public deployment.
 - [ ] If deploying, configure secrets and a disposable database branch first.

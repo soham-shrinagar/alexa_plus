@@ -6,6 +6,18 @@ export function repairRoutine(routine) {
   const before = simulateRoutine(routine);
   let steps = routine.steps.map((step) => ({ ...step }));
   const changes = [];
+  // Generic ordering repairs never change constraints, required tasks, or duration.
+  for (let attempt = 0; attempt < steps.length * 2; attempt += 1) {
+    const issue = simulateRoutine({ ...routine, steps }).violations.find((item) => ["DEPENDENCY_ORDER", "RESOURCE_OVERLAP", "EARLY_START"].includes(item.code));
+    if (!issue) break;
+    const item = steps.find((step) => step.id === issue.stepIds.at(-1));
+    if (!item) break;
+    const constraint = routine.constraints.find((rule) => rule.id === issue.constraintId);
+    const first = steps.find((step) => step.id === issue.stepIds[0]);
+    const start = issue.code === "EARLY_START" ? constraint.exceptions?.[routine.context.weekday] ?? constraint.atMinute : first.endMinute;
+    if (start + item.durationMinutes > 1440) break;
+    replace(item.id, withTiming(item, start), "Respect resource order or the existing earliest-start policy.");
+  }
   for (const issue of before.violations) {
     if (issue.code === "QUIET_WINDOW") {
       const constraint = routine.constraints.find((item) => item.id === issue.constraintId);
@@ -33,6 +45,11 @@ export function repairRoutine(routine) {
   }
   const aligned = alignDepartureCues(steps);
   for (const step of aligned) if (step.startMinute !== steps.find((item) => item.id === step.id).startMinute) replace(step.id, step, "Keep the pre-departure cue aligned with departure.");
+  for (const issue of simulateRoutine({ ...routine, steps }).violations.filter((item) => item.code === "TASK_LATE")) {
+    const item = steps.find((step) => step.id === issue.stepIds[0]);
+    const start = issue.details.atMinute - item.durationMinutes;
+    if (start >= 0 && !item.requiredForDeparture && !item.departure) replace(item.id, withTiming(item, start), "Finish the task by its explicit deadline; recheck all other constraints.");
+  }
   const repaired = { ...routine, steps };
   const after = simulateRoutine(repaired);
   const suggestions = after.violations.filter((item) => item.code === "READINESS_MISSED").map((issue) => {
@@ -40,6 +57,7 @@ export function repairRoutine(routine) {
     const suggestedStartMinute = issue.details.effectiveDeadlineMinute - preparation.durationMinutes - 5;
     return { type: "USER_DECISION", targetId: preparation.targetId, suggestedStartTime: toClock(suggestedStartMinute), message: `${preparation.label} needs to start at ${toClock(suggestedStartMinute)} for a five-minute departure buffer. Confirm a start-time exception or change the goal.` };
   });
+  for (const issue of after.violations.filter((item) => item.code !== "READINESS_MISSED")) suggestions.push({ type: "USER_DECISION", message: `${issue.message} Change the timing or goal explicitly; Rehearse will not relax the policy automatically.` });
   return { routine: repaired, before, after, changes, status: after.status === "PASSED" ? "REPAIRED" : "NEEDS_INPUT", suggestions };
 
   function replace(id, updated, reason) {
