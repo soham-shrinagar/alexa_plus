@@ -11,6 +11,7 @@ import { ApprovalService } from "./approvalService.js";
 import { builtInHouseholds, builtInHousehold, validateHousehold } from "../domain/household.js";
 import { applyRevision } from "./plannerService.js";
 import { EnvironmentProvider } from "../providers/environment.js";
+import { runtimeFingerprint } from "../domain/rehearsalEngine.js";
 
 export class RehearseService {
   constructor({ repository, planner, environment = new EnvironmentProvider(), toolCatalog = [], transactional = true }) {
@@ -60,11 +61,13 @@ export class RehearseService {
     return { defaults: scenario.defaults, environment: scenario.environment, note: "These inputs seed a proposal; the compiler stores the exact constraints used with each version." };
   }
 
-  async compile(userId, { goal, scenarioId = "school-morning", mode = "fixture", dataMode = "live", date, time, includeTraffic = false }) {
+  async compile(userId, { goal, scenarioId = "school-morning", mode = "fixture", dataMode = "live", date, time, includeTraffic = false, groundedContext }) {
     if (mode === "gemini") {
       if (!this.planner) throw new AppError("LLM_NOT_CONFIGURED", "Gemini planning is not configured. Choose the fixture explicitly for an offline demo.", { status: 503 });
       const profile = await this.household(userId, scenarioId);
-      const context = await this.environment.context(profile, { dataMode, date, time, includeTraffic });
+      // groundedContext is internal provider evidence, never exposed as a model-
+      // supplied or raw MCP input. It avoids repeating an orchestrated forecast.
+      const context = groundedContext ?? await this.environment.context(profile, { dataMode, date, time, includeTraffic });
       // Network calls occur outside a database transaction and never hold a user lock.
       const result = await this.planner.plan({ goal, profile, context, tools: this.toolCatalog });
       if (!result.routine) return { ...result, needsClarification: true };
@@ -90,6 +93,7 @@ export class RehearseService {
 
   async reviseWithGemini(userId, proposalId, instruction) {
     const proposal = await this.repository.getProposal(userId, proposalId); assertEditable(proposal);
+    if (proposal.routine.journey) throw new AppError("REPLAN_JOURNEY", "Submit the updated journey request to create a fresh provider-grounded proposal; generic revisions cannot change a calculated arrival plan.", { status: 409 });
     if (!proposal.routine.householdProfile || !this.planner) throw new AppError("LLM_REVISION_UNAVAILABLE", "Compile a Gemini proposal before using a general revision.", { status: 409 });
     const revision = await this.planner.revise({ instruction, routine: proposal.routine });
     const result = applyRevision(proposal.routine, revision, instruction);
@@ -107,6 +111,7 @@ export class RehearseService {
 
   async refreshEnvironment(userId, proposalId) {
     const proposal = await this.repository.getProposal(userId, proposalId); assertEditable(proposal);
+    if (proposal.routine.journey) throw new AppError("REPLAN_JOURNEY", "Replan this journey to recalculate routing, weather, preparation and reminder together. The original remains unchanged.", { status: 409 });
     if (!proposal.routine.householdProfile || proposal.context.dataMode !== "live") throw new AppError("LIVE_CONTEXT_REQUIRED", "Compile a Gemini proposal with live data before refreshing its context.", { status: 409 });
     const context = await this.environment.context(proposal.routine.householdProfile, { dataMode: "live", date: proposal.context.planningDate, time: proposal.context.planningTime, includeTraffic: proposal.context.includeTraffic });
     return this.repository.withUserLock(userId, async (repository) => {
@@ -123,7 +128,7 @@ export class RehearseService {
   async respond(userId, input) {
     if (!this.planner) throw new AppError("LLM_NOT_CONFIGURED", "Configure Gemini before using the conversational assistant.", { status: 503 });
     const proposal = input.proposalId ? await this.repository.getProposal(userId, input.proposalId) : null;
-    const household = await this.household(userId, input.scenarioId ?? proposal?.scenarioId);
+    const household = await this.household(userId, input.scenarioId ?? proposal?.scenarioId ?? "personal-day");
     const decision = await this.planner.decide({ message: input.message, proposal, household, tools: this.toolCatalog });
     if (decision.operation === "clarify" || decision.questions.length) return { reply: decision.reply, questions: decision.questions, needsClarification: true };
     const calls = {
@@ -143,14 +148,15 @@ export class RehearseService {
     assertEditable(proposal);
     const result = simulateRoutine(proposal.routine, proposal.context);
     const simulation = await this.repository.createSimulation(userId, simulationInput(proposal, result));
-    await this.repository.updateProposal(userId, proposalId, { status: result.status === "PASSED" ? "VERIFIED" : "NEEDS_REPAIR" });
+    const updated = await this.repository.updateProposal(userId, proposalId, { status: result.status === "PASSED" ? "VERIFIED" : "NEEDS_REPAIR" });
     await this.audit(userId, proposalId, "SIMULATION_COMPLETED", { simulationId: simulation.id, status: result.status, violationCount: result.violations.length });
-    return { simulation, safeToActivate: result.status === "PASSED" };
+    return { proposal: updated, simulation, safeToActivate: result.status === "PASSED" };
   }
 
   async repair(userId, proposalId) {
     const proposal = await this.repository.getProposal(userId, proposalId);
     assertEditable(proposal);
+    if (proposal.routine.journey) throw new AppError("REPLAN_JOURNEY", "Create a fresh journey with revised timing or contingency. A generic repair cannot rewrite its calendar calculation.", { status: 409 });
     const result = repairRoutine(proposal.routine);
     const updated = await this.repository.updateProposal(userId, proposalId, { routine: result.routine, microTwin: { ...proposal.microTwin, constraints: result.routine.constraints }, context: result.routine.context, version: proposal.version + 1, status: result.after.status === "PASSED" ? "VERIFIED" : "NEEDS_INPUT" });
     const simulation = await this.repository.createSimulation(userId, simulationInput(updated, result.after));
@@ -161,6 +167,7 @@ export class RehearseService {
   async revise(userId, proposalId, instruction) {
     const proposal = await this.repository.getProposal(userId, proposalId);
     assertEditable(proposal);
+    if (proposal.routine.journey) throw new AppError("REPLAN_JOURNEY", "Replan a journey with updated inputs; fixture revisions cannot change grounded arrival timing.", { status: 409 });
     const result = reviseRoutine(proposal.routine, instruction);
     const updated = await this.repository.updateProposal(userId, proposalId, { routine: result.routine, microTwin: { ...proposal.microTwin, constraints: result.routine.constraints }, context: result.routine.context, version: proposal.version + 1, status: result.simulation.status === "PASSED" ? "VERIFIED" : "NEEDS_REPAIR" });
     const simulation = await this.repository.createSimulation(userId, simulationInput(updated, result.simulation));
@@ -173,11 +180,13 @@ export class RehearseService {
     assertEditable(proposal);
     const verification = simulateRoutine(proposal.routine, proposal.context);
     assertFreshContext(proposal.context);
+    assertFutureJourney(proposal);
+    await assertReplacement(this.repository, userId, proposal);
     if (verification.status !== "PASSED") throw new AppError("VERIFICATION_REQUIRED", "Repair and re-simulate the latest proposal before activation.", { status: 409 });
     const approval = await this.approvals.request(userId, "ACTIVATE_ROUTINE", activationPayload(proposal));
     await this.repository.updateProposal(userId, proposalId, { status: "AWAITING_APPROVAL" });
     await this.audit(userId, proposalId, "ACTIVATION_REQUESTED", { approvalId: approval.id, proposalVersion: proposal.version });
-    return { approval, proposalVersion: proposal.version, impact: { devices: proposal.microTwin.devices.map((item) => item.name), steps: proposal.routine.steps.length }, message: "Review the verified routine and explicitly confirm activation." };
+    return { approval, proposalVersion: proposal.version, impact: { devices: proposal.microTwin.devices.map((item) => item.name), steps: proposal.routine.steps.length, replacingRuntime: proposal.routine.replacement?.activationId ?? null }, message: proposal.routine.replacement ? "Review this recovery plan. Confirmation stops the previous runtime and starts this exact verified alternative together." : "Review the verified routine and explicitly confirm activation." };
   }
 
   async activate(userId, { proposalId, approvalId, confirmed, idempotencyKey }) {
@@ -190,11 +199,18 @@ export class RehearseService {
     }
     assertEditable(proposal);
     assertFreshContext(proposal.context);
+    assertFutureJourney(proposal);
+    const replacing = await assertReplacement(this.repository, userId, proposal);
     if (simulateRoutine(proposal.routine, proposal.context).status !== "PASSED") throw new AppError("VERIFICATION_REQUIRED", "The latest proposal must pass verification before activation.", { status: 409 });
     if (await this.repository.getActiveActivationForProposal(userId, proposalId)) throw new AppError("ROUTINE_ALREADY_ACTIVE", "Roll back the existing runtime before activating another version.", { status: 409 });
     const payload = activationPayload(proposal);
     await this.approvals.approve(userId, approvalId);
     await this.approvals.consume(userId, approvalId, "ACTIVATE_ROUTINE", payload);
+    if (replacing) {
+      await this.repository.updateActivation(userId, replacing.id, { status: "ROLLED_BACK", rolledBackAt: new Date().toISOString(), runtimeState: { routine: null, context: replacing.snapshot.context, deviceStates: replacing.snapshot.deviceStates, lastEvent: null, restored: true } });
+      await this.repository.updateProposal(userId, replacing.proposalId, { status: "ROLLED_BACK" });
+      await this.audit(userId, proposalId, "PREVIOUS_RUNTIME_REPLACED", { previousActivationId: replacing.id, previousProposalId: replacing.proposalId }, replacing.id);
+    }
     const deviceStates = Object.fromEntries(proposal.microTwin.devices.map((device) => [device.id, { status: "IDLE", scheduledActions: [] }]));
     const snapshot = { capturedAt: new Date().toISOString(), deviceStates: structuredClone(deviceStates), context: structuredClone(proposal.context) };
     for (const step of proposal.routine.steps) if (deviceStates[step.targetId]) {
@@ -210,7 +226,12 @@ export class RehearseService {
   async status(userId, proposalId) {
     const proposal = await this.repository.getProposal(userId, proposalId);
     const activation = await this.repository.getActiveActivationForProposal(userId, proposalId);
-    return { proposal, activation };
+    const simulation = await this.repository.latestSimulation(userId, proposalId, proposal.version);
+    return { proposal, activation, simulation };
+  }
+  async listPlans(userId, limit = 30) {
+    const rows = await this.repository.listProposals(userId, limit);
+    return { plans: rows.map(proposal => ({ id: proposal.id, title: proposal.routine.title, goal: proposal.goal, status: proposal.status, version: proposal.version, scenarioId: proposal.scenarioId, updatedAt: proposal.updatedAt, kind: proposal.routine.journey ? "journey" : "household", departureTime: proposal.routine.journey?.departureTime ?? null, arrivalTime: proposal.routine.journey?.arrivalTime ?? null, parentId: proposal.routine.lineage?.parentProposalId ?? null })) };
   }
 
   async injectEvent(userId, activationId, event) {
@@ -247,7 +268,7 @@ export class RehearseService {
 }
 
 function requireScenario(id) { const scenario = getScenario(id); if (!scenario) throw new AppError("SCENARIO_NOT_FOUND", `Unknown scenario: ${id}.`, { status: 404 }); return scenario; }
-function activationPayload(proposal) { return { proposalId: proposal.id, proposalVersion: proposal.version }; }
+function activationPayload(proposal) { return { proposalId: proposal.id, proposalVersion: proposal.version, ...(proposal.routine.replacement ? { replacement: proposal.routine.replacement } : {}) }; }
 function simulationInput(proposal, result) { return { proposalId: proposal.id, proposalVersion: proposal.version, status: result.status, violations: result.violations, trace: result.trace, summary: result.summary }; }
 function assertEditable(proposal) {
   if (["ACTIVE", "SUSPENDED", "ROLLED_BACK"].includes(proposal.status)) throw new AppError("PROPOSAL_LOCKED", "Compile a new proposal after activation or rollback; the approved version is immutable.", { status: 409 });
@@ -255,4 +276,14 @@ function assertEditable(proposal) {
 function assertFreshContext(context) {
   if (context.dataMode !== "live") return;
   if (!context.evidence?.length || context.evidence.some(item => !Number.isFinite(Date.parse(item.retrievedAt)) || Date.now() - Date.parse(item.retrievedAt) > 900000 || Date.parse(item.retrievedAt) > Date.now() + 60000)) throw new AppError("ENVIRONMENT_STALE", "Live evidence is missing or older than 15 minutes. Refresh and reverify before approval.", { status: 409 });
+}
+function assertFutureJourney(proposal) {
+  if (proposal.routine.journey && Date.parse(proposal.routine.journey.reminderAt) <= Date.now()) throw new AppError("PLAN_ALREADY_STARTED", "The reminder time has passed. Create a new journey before approving it.", { status: 409 });
+}
+async function assertReplacement(repository, userId, proposal) {
+  const binding = proposal.routine.replacement;
+  if (!binding) return null;
+  const source = await repository.getActivation(userId, binding.activationId);
+  if (!["ACTIVE", "SUSPENDED"].includes(source.status) || runtimeFingerprint(source) !== binding.runtimeHash) throw new AppError("STALE_RUNTIME", "The source runtime changed. Compare and review a new recovery alternative.", { status: 409 });
+  return source;
 }

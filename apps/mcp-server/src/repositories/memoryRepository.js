@@ -41,6 +41,8 @@ export class MemoryRepository {
   }
 
   async getProposal(userId, id) { return structuredClone(owned(this.proposals, userId, id)); }
+  async listProposals(userId, limit = 30) { return structuredClone(this.proposals.filter(item => item.userId === userId).sort((a,b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, limit)); }
+  async latestSimulation(userId, proposalId, version) { owned(this.proposals, userId, proposalId); return structuredClone(this.simulations.filter(item => item.userId === userId && item.proposalId === proposalId && item.proposalVersion === version).at(-1) ?? null); }
 
   async updateProposal(userId, id, patch) {
     const record = owned(this.proposals, userId, id);

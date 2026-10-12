@@ -21,6 +21,7 @@ export function loadConfig(env = process.env) {
     geminiModel: env.GEMINI_MODEL || "gemini-3.5-flash-lite",
     llmTimeoutMs: integer(env.LLM_TIMEOUT_MS, 45000, "LLM_TIMEOUT_MS", 1000, 120000),
     trafficApiKey: env.TOMTOM_API_KEY || undefined,
+    alexaAuthCompatibility: env.ALEXA_AUTH_COMPATIBILITY === "true",
     requestLimit: integer(env.REQUEST_LIMIT, 120, "REQUEST_LIMIT", 1),
     requestWindowMs: integer(env.REQUEST_WINDOW_MS, 60_000, "REQUEST_WINDOW_MS", 1000),
     maxSessions: integer(env.MAX_MCP_SESSIONS, 100, "MAX_MCP_SESSIONS", 1),

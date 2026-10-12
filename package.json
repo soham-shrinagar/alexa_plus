@@ -9,6 +9,8 @@
     "check": "node scripts/check.js",
     "test:neon": "npm --prefix apps/mcp-server run test:neon",
     "smoke:providers": "node scripts/providerSmoke.js",
+    "smoke:journey": "node scripts/providerSmoke.js --journey",
+    "check:alexa": "node scripts/alexaReadiness.js",
     "prisma:validate": "node scripts/prismaValidate.js",
     "prisma:generate": "node scripts/prisma.js generate",
     "prisma:migrate": "node scripts/prisma.js migrate deploy",
