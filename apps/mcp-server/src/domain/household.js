@@ -58,7 +58,8 @@ const evening = validateHousehold({
   location: { latitude: 18.5204, longitude: 73.8567 }, environment: { weekday: "Saturday" }
 });
 
-const profiles = [school, work, evening];
+const personal = validateHousehold({ id: "personal-day", name: "My day", description: "A blank personal planner. No invented family, appliances, address, or school schedule.", people: [{ id: "self", name: "You", roles: ["planner"] }], devices: [], policies: { maxConcurrentPowerWatts: 3000, rainyDepartureAdvanceMinutes: 10 }, environment: {} });
+const profiles = [personal, school, work, evening];
 export function builtInHouseholds() { return structuredClone(profiles); }
 export function builtInHousehold(id) { return structuredClone(profiles.find((profile) => profile.id === id)); }
 

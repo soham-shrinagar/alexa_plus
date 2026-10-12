@@ -1,127 +1,579 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Rehearse compiles, simulates, repairs, and safely activates adaptive household routines.">
-  <title>Rehearse — prove the routine before the morning</title>
-  <link rel="stylesheet" href="/styles.css">
-</head>
-<body>
-  <header class="topbar">
-    <a class="brand" href="/" aria-label="Rehearse home"><span class="brand-mark">R</span><span>rehearse</span></a>
-    <div class="connection"><span id="connection-dot" class="dot"></span><span id="connection-label">Not connected</span><span class="protocol">MCP 2025-11-25</span></div>
-  </header>
-
-  <main>
-    <section class="hero">
-      <div>
-        <p class="eyebrow">A safety layer for Alexa+ household autonomy</p>
-        <h1>Prove the routine<br><em>before</em> the morning.</h1>
-        <p class="lede">Rehearse turns a household goal into a temporary micro-twin, simulates every step, repairs conflicts, and activates only after verification and approval.</p>
-      </div>
-      <div class="hero-stat"><span id="score">—</span><small>constraints passing</small></div>
-    </section>
-
-    <section class="workspace">
-      <aside class="control-panel">
-        <div class="section-heading"><span>01</span><div><h2>Describe the outcome</h2><p>Gemini proposes. The verifier checks. You approve.</p></div></div>
-        <label for="household">Household profile</label>
-        <select id="household"><option value="school-morning">School morning</option></select>
-        <div class="form-grid">
-          <div><label for="planner">Planner</label><select id="planner"><option value="gemini">Gemini · real LLM</option><option value="fixture">School fixture · offline</option></select></div>
-          <div><label for="data-mode">Environment</label><select id="data-mode"><option value="live">Live weather</option><option value="fixture">Labelled fixture</option><option value="none">No external data</option></select></div>
-          <div><label for="planning-date">Forecast date</label><input id="planning-date" type="date"></div>
-          <div><label for="planning-time">Forecast hour</label><input id="planning-time" type="time" value="07:00"></div>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Rehearse plans your day with real context, tests disruptions and compares changes before you approve them."
+    />
+    <title>Rehearse — the dayboard</title>
+    <link rel="stylesheet" href="/workspace.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <a class="brand" href="/"
+          ><span class="brand-icon" aria-hidden="true">r<span>↗</span></span
+          ><span>rehearse<small>The dayboard</small></span></a
+        >
+        <nav aria-label="Workspace">
+          <button data-view="plan" class="nav-item selected">
+            <span data-icon="plan"></span>Plan<span class="nav-key">01</span>
+          </button>
+          <button data-view="rehearse" class="nav-item">
+            <span data-icon="rehearse"></span>Rehearse<span class="nav-key"
+              >02</span
+            >
+          </button>
+          <button data-view="saved" class="nav-item">
+            <span data-icon="saved"></span>Saved plans
+          </button>
+          <button data-view="household" class="nav-item">
+            <span data-icon="home"></span>Household
+          </button>
+          <button data-view="connections" class="nav-item">
+            <span data-icon="connections"></span>Connections
+          </button>
+        </nav>
+        <div class="sidebar-note">
+          <span class="note-symbol">↗</span>
+          <p>Good plans leave<br />room for real life.</p>
+          <small
+            >Keep the outcome.<br />See the tradeoffs.<br />You choose the
+            change.</small
+          >
         </div>
-        <label class="check-label"><input id="include-traffic" type="checkbox"> Include optional TomTom traffic</label>
-        <p id="provider-status" class="status">Checking provider configuration…</p>
-        <label for="goal">Household goal</label>
-        <textarea id="goal" rows="7">Make our school mornings run themselves. We need to leave by 7:45. Don’t wake the baby before 7, don’t run the kettle and water heater together, and leave 15 minutes earlier when it rains.</textarea>
-        <div class="actions">
-          <button id="ask" class="primary" disabled>Ask Rehearse <span>→</span></button>
-          <button id="reset" class="secondary">Reset session</button>
+        <div class="sidebar-status">
+          <span id="connection-dot" class="status-dot"></span
+          ><span id="connection">Connecting…</span
+          ><small>Alexa+ experience simulation</small>
         </div>
-        <button id="guided" class="secondary full-width" disabled>Run the labelled school fixture demo</button>
-        <p class="privacy-note">Requests, household details, and selected context go to Gemini. Coordinates go to the selected weather/traffic provider. Use synthetic household data for the public demo.</p>
-        <p id="status" class="status" role="status">Ready to compile a routine.</p>
-
-        <div class="stepper" id="stepper">
-          <button data-action="compile" disabled><b>1</b><span>Compile<small>Build a minimal model</small></span></button>
-          <button data-action="simulate" disabled><b>2</b><span>Simulate<small>Expose conflicts</small></span></button>
-          <button data-action="repair" disabled><b>3</b><span>Repair<small>Resolve safe changes</small></span></button>
-          <button data-action="revise" disabled><b>4</b><span>Revise<small>Confirm one exception</small></span></button>
-          <button data-action="approve" disabled><b>5</b><span>Approve<small>Bind the exact version</small></span></button>
-          <button data-action="disrupt" disabled><b>6</b><span>Disrupt<small>Simulated event</small></span></button>
-          <button data-action="recover" disabled><b>7</b><span>Recover<small>Reverify approved actions</small></span></button>
-          <button data-action="rollback" disabled><b>8</b><span>Rollback<small>Restore the snapshot</small></span></button>
-        </div>
-        <div class="revision-input">
-          <label for="revision">Your routine revision</label>
-          <textarea id="revision" rows="3">On Fridays, Maya can wake at 6:50, but keep everything else unchanged.</textarea>
-          <p class="status">Gemini revises known step timing. Earlier-person exceptions require explicit named permission. Power and quiet policies stay intact.</p>
-        </div>
-        <div class="revision-input">
-          <label for="event-type">Simulated disruption</label>
-          <select id="event-type"><option value="DEVICE_UNAVAILABLE">Device unavailable</option><option value="TRAVEL_DELAY">Total travel delay</option><option value="WEATHER_CHANGED">Rain starts</option></select>
-          <label for="event-capability">Approved capability</label><select id="event-capability"></select>
-          <label for="event-delay">Total delay (minutes)</label><input id="event-delay" type="number" min="0" max="60" value="5">
-          <p class="status">These controls inject synthetic events, not device telemetry. Recover clears the selected failure, delay, or rain event and reverifies.</p>
-        </div>
-        <details class="household-editor">
-          <summary>Configure / export household</summary>
-          <p class="status">Copy an example with a new ID and edit its JSON. Save affects only this demo identity. Reset creates a new identity; export first.</p>
-          <label for="household-json">Household JSON</label><textarea id="household-json" rows="12" spellcheck="false"></textarea>
-          <div class="actions"><button id="save-household" class="secondary" disabled>Review and save</button><button id="export-household" class="secondary" disabled>Export JSON</button></div>
-        </details>
       </aside>
-
-      <section class="stage" aria-live="polite">
-        <div class="stage-head"><div><p class="eyebrow">Current proposal</p><h2 id="proposal-title">Nothing compiled yet</h2></div><span id="proposal-state" class="pill muted">DRAFT</span></div>
-        <div class="metrics">
-          <div><strong id="version">—</strong><span>version</span></div>
-          <div><strong id="entities">—</strong><span>relevant entities</span></div>
-          <div><strong id="violations">—</strong><span>critical conflicts</span></div>
-          <div><strong id="departure">—</strong><span>departure</span></div>
-        </div>
-
-        <div class="timeline-card">
-          <div class="card-title"><h3>Temporal rehearsal</h3><span>06:00 — 08:00</span></div>
-          <div id="timeline" class="timeline empty"><p>Compile the goal to see the proposed sequence.</p></div>
-        </div>
-        <div class="split">
-          <div class="card"><div class="card-title"><h3>Assistant / extracted tasks</h3><span id="planner-label">No planner run</span></div><div id="assistant-output" class="findings"><p class="status">Ask a household question or describe a new goal. The assistant discovers real MCP tools; activation always needs your dialog confirmation.</p></div></div>
-          <div class="card"><div class="card-title"><h3>External evidence</h3><span>source + freshness</span></div><div id="evidence" class="findings"><p class="status">No provider observation yet. Fixture weather is never labelled live.</p></div><button id="refresh-environment" class="secondary" disabled>Refresh and reverify proposal</button></div>
-        </div>
-
-        <div class="split">
-          <div class="card">
-            <div class="card-title"><h3>Constraint findings</h3><span id="finding-count">0</span></div>
-            <div id="findings" class="findings empty"><p>No simulation yet.</p></div>
+      <main>
+        <header class="topbar">
+          <div class="breadcrumb">
+            Workspace <span>/</span> <b id="view-name">Plan</b>
           </div>
-          <div class="card">
-            <div class="card-title"><h3>Just-in-time micro-twin</h3><span>proposal-scoped</span></div>
-            <div id="twin" class="twin empty"><p>Only referenced people and devices will appear here.</p></div>
+          <div class="topbar-meta">
+            <span id="today"></span
+            ><span class="simulation-label"
+              ><span class="status-dot"></span> Simulated execution</span
+            >
           </div>
+        </header>
+        <div id="status" class="notice" role="status">
+          Opening your workspace…
         </div>
-
-        <div class="card trace-card">
-          <div class="card-title"><h3>MCP activity</h3><span>real JSON-RPC calls</span></div>
-          <ol id="trace" class="trace"><li><time>—</time><span>Waiting for a browser-to-server MCP session.</span></li></ol>
+        <section class="page-header">
+          <div>
+            <p class="eyebrow" id="page-kicker">The intention</p>
+            <h1 id="page-title">Plan a day that works.</h1>
+            <p id="page-description">
+              Start with the outcome. Add the context. See how the whole plan
+              fits.
+            </p>
+          </div>
+          <button id="new-plan" class="button secondary" data-work>
+            <span data-icon="plus"></span>New plan
+          </button>
+        </section>
+        <section id="view-plan" class="page-view">
+          <div class="plan-layout">
+            <aside class="intent-panel panel">
+              <div class="panel-heading">
+                <span class="number">01</span>
+                <h2>What needs to happen?</h2>
+              </div>
+              <label for="request">Your request</label
+              ><textarea
+                id="request"
+                rows="5"
+                placeholder="Reach my office by 10am tomorrow. Allow 20 minutes to get ready and 10 to pack my laptop. Check traffic and weather."
+              ></textarea>
+              <div class="form-grid">
+                <div>
+                  <label for="profile">Planning context</label
+                  ><select id="profile">
+                    <option value="personal-day">My day</option>
+                  </select>
+                </div>
+                <div>
+                  <label for="date">Date</label
+                  ><input id="date" type="date" required />
+                </div>
+              </div>
+              <details id="journey-details" class="fold">
+                <summary>
+                  Journey details
+                  <span id="places-summary">Locations needed for travel</span>
+                </summary>
+                <p class="help">
+                  Search a street or area with a city. Select the intended
+                  result.
+                </p>
+                <label for="origin">From</label>
+                <div class="search-field">
+                  <input
+                    id="origin"
+                    placeholder="Starting street, area and city"
+                  /><button
+                    id="search-origin"
+                    class="icon-button"
+                    aria-label="Search origin"
+                    data-work
+                  >
+                    <span data-icon="search"></span>
+                  </button>
+                </div>
+                <div id="origin-results" class="place-results"></div>
+                <p id="origin-selected" class="selection-note">
+                  No origin selected
+                </p>
+                <label for="destination">To</label>
+                <div class="search-field">
+                  <input
+                    id="destination"
+                    placeholder="Destination street, area and city"
+                  /><button
+                    id="search-destination"
+                    class="icon-button"
+                    aria-label="Search destination"
+                    data-work
+                  >
+                    <span data-icon="search"></span>
+                  </button>
+                </div>
+                <div id="destination-results" class="place-results"></div>
+                <p id="destination-selected" class="selection-note">
+                  No destination selected
+                </p>
+                <div class="form-grid">
+                  <div>
+                    <label for="arrival">Arrive by</label
+                    ><input id="arrival" type="time" />
+                  </div>
+                  <div>
+                    <label for="mode">Travel mode</label
+                    ><select id="mode">
+                      <option value="car">Drive</option>
+                      <option value="pedestrian">Walk</option>
+                      <option value="bicycle">Cycle</option>
+                    </select>
+                  </div>
+                </div>
+                <label for="timezone">Local timezone</label
+                ><input id="timezone" required />
+                <button id="sample-places" class="button text small" data-work>
+                  Use public Pune demo locations ↗
+                </button>
+              </details>
+              <details class="fold">
+                <summary>
+                  Preparation & allowances <span>Adjust to your day</span>
+                </summary>
+                <div class="form-grid">
+                  <div>
+                    <label for="prep">Getting ready · min</label
+                    ><input
+                      id="prep"
+                      type="number"
+                      min="0"
+                      max="240"
+                      value="20"
+                    />
+                  </div>
+                  <div>
+                    <label for="safety">Arrival buffer · min</label
+                    ><input
+                      id="safety"
+                      type="number"
+                      min="0"
+                      max="60"
+                      value="10"
+                    />
+                  </div>
+                  <div>
+                    <label for="rain">Rain allowance · min</label
+                    ><input
+                      id="rain"
+                      type="number"
+                      min="0"
+                      max="60"
+                      value="10"
+                    />
+                  </div>
+                  <div>
+                    <label for="lead">Reminder before prep · min</label
+                    ><input
+                      id="lead"
+                      type="number"
+                      min="0"
+                      max="120"
+                      value="5"
+                    />
+                  </div>
+                </div>
+                <p class="help">
+                  Additional tasks need their own durations in your request.
+                  Allowances are your policy, not measured weather delays.
+                </p>
+              </details>
+              <button id="plan" class="button primary full" disabled data-work>
+                <span data-icon="arrow"></span>Build my plan
+              </button>
+              <p class="subtle small">
+                Requests are interpreted by Gemini. Locations are used only when
+                the chosen tools need them.
+              </p>
+              <details class="fold examples">
+                <summary>Try a starting point</summary>
+                <button data-example="commute" class="example-button" data-work>
+                  Arrive on time with preparation</button
+                ><button
+                  data-example="evening"
+                  class="example-button"
+                  data-work
+                >
+                  Sequence an evening's tasks</button
+                ><button
+                  data-example="forecast"
+                  class="example-button"
+                  data-work
+                >
+                  Check a real forecast
+                </button>
+              </details>
+              <div
+                id="conversation"
+                class="conversation"
+                aria-live="polite"
+              ></div>
+            </aside>
+            <div class="outcome-column">
+              <div class="outcome-toolbar">
+                <span class="eyebrow">Your plan</span
+                ><span id="plan-status" class="badge neutral">No plan yet</span>
+              </div>
+              <div id="plan-board" class="panel plan-board">
+                <div class="empty-board">
+                  <span class="empty-route" aria-hidden="true"
+                    >◦ ───── ◦ ───── ↗</span
+                  >
+                  <h2>Make the timing visible.</h2>
+                  <p>
+                    Your preparation, travel and deadline belong in the same
+                    plan.<br />Describe an outcome to build the first timeline.
+                  </p>
+                  <div class="empty-sequence">
+                    <span>Prepare</span><span>Travel</span><span>Arrive</span>
+                  </div>
+                </div>
+              </div>
+              <div id="plan-actions" class="action-row" hidden>
+                <button id="open-rehearsal" class="button secondary" data-work>
+                  <span data-icon="rehearse"></span>Rehearse a change</button
+                ><button id="approve" class="button primary" data-work>
+                  Review & start simulation ↗</button
+                ><button id="export" class="button secondary" data-work>
+                  Calendar reminder ↓</button
+                ><button id="refresh" class="button text" data-work>
+                  Refresh provider evidence ↻</button
+                ><button id="repair" class="button secondary" data-work>
+                  Repair timing conflicts
+                </button>
+              </div>
+              <section id="revision-panel" class="panel compact" hidden>
+                <h3>Change the request explicitly</h3>
+                <p class="help">
+                  Timing repairs preserve your policies. A permission change
+                  needs your own instruction.
+                </p>
+                <label for="revision">Revision</label
+                ><textarea
+                  id="revision"
+                  rows="2"
+                  placeholder="Move the announcement to 18:00. Keep all other policies unchanged."
+                ></textarea
+                ><button id="revise" class="button secondary" data-work>
+                  Apply instruction & verify
+                </button>
+              </section>
+              <section id="runtime-panel" class="panel runtime-panel" hidden>
+                <div class="panel-heading">
+                  <span class="number">Live model</span>
+                  <h3>Simulated runtime</h3>
+                  <span id="runtime-status" class="badge"></span>
+                </div>
+                <p id="runtime-copy"></p>
+                <div class="action-row">
+                  <button id="inject-delay" class="button secondary" data-work>
+                    Inject 15 min extra traffic</button
+                  ><button
+                    id="recover-baseline"
+                    class="button secondary"
+                    data-work
+                  >
+                    Restore baseline conditions</button
+                  ><button id="recover-plan" class="button primary" data-work>
+                    Compare recovery plans ↗</button
+                  ><button id="stop" class="button text" data-work>
+                    Stop & restore snapshot
+                  </button>
+                </div>
+                <p class="help">
+                  These are simulated disruptions. Providers are real; no device
+                  executes and no continuous monitor runs.
+                </p>
+              </section>
+              <details id="evidence-panel" class="panel evidence-fold">
+                <summary>
+                  Why this plan?
+                  <span>Facts, allowances & extracted tasks</span>
+                </summary>
+                <div id="plan-evidence"></div>
+              </details>
+            </div>
+          </div>
+        </section>
+        <section id="view-rehearse" class="page-view" hidden>
+          <div class="rehearsal-layout">
+            <aside class="panel stress-controls">
+              <div class="panel-heading">
+                <span class="number">02</span>
+                <h2>Change the conditions</h2>
+              </div>
+              <p class="help">
+                Use a saved plan. Test the original timing and compare choices
+                that preserve its requirements.
+              </p>
+              <label for="stress-delay"
+                >Extra travel time <b id="stress-value">15 minutes</b></label
+              ><input
+                id="stress-delay"
+                type="range"
+                min="0"
+                max="60"
+                step="5"
+                value="15"
+              />
+              <div class="range-labels">
+                <span>0 min</span><span>60 min</span>
+              </div>
+              <label class="checkbox"
+                ><input id="stress-rain" type="checkbox" /> Assume rain</label
+              ><label for="stress-capability">Unavailable capability</label
+              ><select id="stress-capability">
+                <option value="">None</option></select
+              ><label class="checkbox"
+                ><input id="stress-runtime" type="checkbox" /> Use current
+                runtime conditions</label
+              ><button id="compare" class="button primary full" data-work>
+                Compare the alternatives ↗
+              </button>
+              <div class="stress-presets">
+                <span class="subtle small">Quick tests</span
+                ><button data-delay="0" data-work>Baseline</button
+                ><button data-delay="15" data-work>+15 min</button
+                ><button data-delay="30" data-work>+30 min</button
+                ><button id="rain-test" data-work>Rain</button>
+              </div>
+              <div class="benchmark-note">
+                <h3>Offline verification case</h3>
+                <p class="help">
+                  A labelled household fixture exposes power, quiet-hours and
+                  readiness conflicts without any API key.
+                </p>
+                <button id="benchmark" class="button secondary full" data-work>
+                  Load household benchmark
+                </button>
+              </div>
+            </aside>
+            <div id="comparison-board">
+              <div class="panel empty-board">
+                <span class="empty-route" aria-hidden="true">↗ ↔ ↗</span>
+                <h2>See the cost of a change.</h2>
+                <p>
+                  Traffic, rain or a lost capability can break a good plan.<br />Compare
+                  earlier preparation and a later deadline before choosing.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+        <section id="view-saved" class="page-view" hidden>
+          <div class="section-toolbar">
+            <p class="subtle">
+              Plans saved for this demo identity. Open one to inspect its
+              timeline, alternatives and audit.
+            </p>
+            <button id="reload-plans" class="button secondary" data-work>
+              Refresh list
+            </button>
+          </div>
+          <div id="saved-plans" class="saved-grid"></div>
+          <section class="panel audit-panel">
+            <div class="panel-heading">
+              <span class="number">Trace</span>
+              <h2>How this plan changed</h2>
+              <button id="load-audit" class="button text" data-work>
+                Load selected plan's activity
+              </button>
+            </div>
+            <div id="audit-list">
+              <p class="help">Choose a saved plan to inspect its history.</p>
+            </div>
+          </section>
+        </section>
+        <section id="view-household" class="page-view" hidden>
+          <div class="household-layout">
+            <section class="panel">
+              <h2>Your declared context</h2>
+              <p class="help">
+                Personal planning starts with you and no assumed appliances.
+                Household plans use only the people, capabilities and policies
+                you declare. Device effects remain simulated.
+              </p>
+              <label for="edit-profile">Copy a profile</label
+              ><select id="edit-profile"></select
+              ><button id="copy-profile" class="button secondary" data-work>
+                Load into editor
+              </button>
+              <div id="profile-summary"></div>
+            </section>
+            <section class="panel">
+              <h2>Make it fit your household</h2>
+              <div class="form-grid">
+                <div>
+                  <label for="household-name">Name</label
+                  ><input id="household-name" value="My household" />
+                </div>
+                <div>
+                  <label for="household-id">Profile ID</label
+                  ><input
+                    id="household-id"
+                    value="my-household"
+                    pattern="[a-z][a-z0-9-]{0,63}"
+                  />
+                </div>
+              </div>
+              <div class="editor-heading">
+                <h3>People</h3>
+                <button id="add-person" class="button text" data-work>
+                  + Add person
+                </button>
+              </div>
+              <div id="people-editor"></div>
+              <div class="editor-heading">
+                <h3>Simulated devices</h3>
+                <button id="add-device" class="button text" data-work>
+                  + Add device
+                </button>
+              </div>
+              <div id="devices-editor"></div>
+              <h3>Policies</h3>
+              <div class="form-grid">
+                <div>
+                  <label for="power-budget">Concurrent power limit · W</label
+                  ><input
+                    id="power-budget"
+                    type="number"
+                    min="1"
+                    max="30000"
+                    value="3000"
+                  />
+                </div>
+                <div>
+                  <label for="quiet-until">Quiet until · optional</label
+                  ><input id="quiet-until" type="time" />
+                </div>
+                <div>
+                  <label for="household-rain"
+                    >Rain departure allowance · min</label
+                  ><input
+                    id="household-rain"
+                    type="number"
+                    min="0"
+                    max="120"
+                    value="10"
+                  />
+                </div>
+              </div>
+              <button id="save-household" class="button primary" data-work>
+                Review & save household
+              </button>
+              <details class="fold">
+                <summary>Advanced profile JSON</summary>
+                <p class="help">
+                  Use this for roles, route coordinates or other declared
+                  fields. Imported profiles are still validated by the server.
+                </p>
+                <textarea
+                  id="household-json"
+                  rows="9"
+                  spellcheck="false"
+                ></textarea>
+                <div class="action-row">
+                  <button
+                    id="profile-to-json"
+                    class="button secondary"
+                    data-work
+                  >
+                    Form → JSON</button
+                  ><button
+                    id="json-to-profile"
+                    class="button secondary"
+                    data-work
+                  >
+                    JSON → form
+                  </button>
+                </div>
+              </details>
+            </section>
+          </div>
+        </section>
+        <section id="view-connections" class="page-view" hidden>
+          <div class="connections-grid" id="provider-cards"></div>
+          <section class="panel">
+            <div class="panel-heading">
+              <h2>The tool surface</h2>
+              <span id="tool-count" class="badge neutral"></span>
+            </div>
+            <p class="help">
+              This browser uses actual MCP initialize, tools/list and tools/call
+              requests. Internal workflow steps reuse the same service
+              implementations.
+            </p>
+            <div id="tool-catalog" class="tool-catalog"></div>
+          </section>
+          <section class="panel trace-panel">
+            <h3>Session activity</h3>
+            <ol id="tool-trace"></ol>
+          </section>
+        </section>
+        <footer>
+          <span>Rehearse · plan, test, choose.</span
+          ><span>Real context. Simulated execution.</span>
+        </footer>
+      </main>
+    </div>
+    <dialog id="review-dialog">
+      <form method="dialog">
+        <p class="eyebrow">Review the choice</p>
+        <h2 id="review-title">Your approval</h2>
+        <p id="review-copy"></p>
+        <p class="help">
+          Execution is simulated. A downloaded calendar file requires import and
+          enabled alerts.
+        </p>
+        <div class="action-row">
+          <button value="cancel" class="button secondary">Cancel</button
+          ><button id="confirm-approval" value="confirm" class="button primary">
+            Confirm
+          </button>
         </div>
-      </section>
-    </section>
-  </main>
-
-  <dialog id="approval-dialog">
-    <form method="dialog">
-      <p class="eyebrow">Explicit approval</p>
-      <h2>Activate this verified version?</h2>
-      <p id="approval-copy">Rehearse will bind your approval to the exact proposal version and capture a rollback snapshot.</p>
-      <div class="dialog-actions"><button value="cancel" class="secondary">Cancel</button><button id="confirm-approval" value="confirm" class="primary">Confirm activation</button></div>
-    </form>
-  </dialog>
-
-  <script type="module" src="/app.js"></script>
-</body>
+      </form>
+    </dialog>
+    <script type="module" src="/workspace/app.js"></script>
+  </body>
 </html>

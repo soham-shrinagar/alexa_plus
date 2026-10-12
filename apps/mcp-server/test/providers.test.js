@@ -3,6 +3,18 @@ import test from "node:test";
 import { GeminiProvider } from "../src/providers/gemini.js";
 import { EnvironmentProvider } from "../src/providers/environment.js";
 import { builtInHousehold } from "../src/domain/household.js";
+import { httpJson } from "../src/providers/httpJson.js";
+
+test("transient read-only provider failures get one retry; quota/auth/model calls do not", async () => {
+  let calls = 0;
+  const value = await httpJson(async () => ++calls === 1 ? new Response("temporary", {status:503}) : new Response('{"ok":true}'), "https://provider.example", {provider:"Test"});
+  assert.equal(value.ok,true); assert.equal(calls,2);
+  for (const [status, method] of [[429,"GET"],[403,"GET"],[503,"POST"]]) {
+    calls=0;
+    await assert.rejects(()=>httpJson(async()=>{calls++;return new Response("never expose this body",{status});},"https://provider.example",{provider:"Test",method}));
+    assert.equal(calls,1);
+  }
+});
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status });
 const forecast = { timezone: "Asia/Kolkata", hourly: { time: ["2026-10-11T07:00"], precipitation: [2], temperature_2m: [24], weather_code: [61] } };
 
