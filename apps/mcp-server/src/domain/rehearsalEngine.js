@@ -119,7 +119,7 @@ export function rehearse(base, sourceContext, rawScenario, now = Date.now()) {
       "The total extra delay must be within 60 minutes.",
       { status: 400 },
     );
-  const failures = events.filter(
+  const failures = appliedEvents.filter(
     (event) => event.type === "CAPABILITY_UNAVAILABLE",
   );
   if (
@@ -133,7 +133,9 @@ export function rehearse(base, sourceContext, rawScenario, now = Date.now()) {
       "Select a capability used by this plan.",
       { status: 400 },
     );
-  const allowances = events.filter((event) => event.type === "TASK_ALLOWANCE");
+  const allowances = appliedEvents.filter(
+    (event) => event.type === "TASK_ALLOWANCE",
+  );
   if (allowances.reduce((total, event) => total + event.minutes, 0) > 120)
     throw new AppError(
       "SCENARIO_OUT_OF_RANGE",
@@ -195,7 +197,7 @@ export function rehearse(base, sourceContext, rawScenario, now = Date.now()) {
         ...(sourceContext.unavailableCapabilities ?? []),
         ...failures.map((event) => event.capability),
       ]),
-    ],
+    ].sort(),
   };
   const affected = { ...structuredClone(base), context };
   affected.steps = affected.steps.map((step) => {
@@ -297,12 +299,24 @@ export function rehearse(base, sourceContext, rawScenario, now = Date.now()) {
       metrics: option.routine
         ? journeyMetrics(option.routine, option.routine.context)
         : null,
-      evidenceAssessment:option.routine?assessEvidence(option.routine,option.routine.context,now,option.verification?.status??null):null,
+      evidenceAssessment: option.routine
+        ? assessEvidence(
+            option.routine,
+            option.routine.context,
+            now,
+            option.verification?.status ?? null,
+          )
+        : null,
     })),
     metrics: journeyMetrics(affected, context),
     scenarioChanges: changesBetween(base, affected),
     hypothetical: true,
-    evidenceAssessment:assessEvidence(base,base.context,now,unchanged.status),
+    evidenceAssessment: assessEvidence(
+      base,
+      base.context,
+      now,
+      unchanged.status,
+    ),
   };
 }
 
@@ -434,7 +448,11 @@ function journeyMetrics(base, context) {
   const journey = base.journey;
   const departure = base.steps.find((step) => step.departure);
   const reserve = context.weather.raining ? journey.input.rainBufferMinutes : 0;
-  const capabilityBlocked = base.steps.some(step=>!step.optional&&(context.unavailableCapabilities??[]).includes(step.capability));
+  const capabilityBlocked = base.steps.some(
+    (step) =>
+      !step.optional &&
+      (context.unavailableCapabilities ?? []).includes(step.capability),
+  );
   const estimatedArrivalMinute =
     departure.startMinute +
     journey.routeMinutes +
@@ -444,11 +462,12 @@ function journeyMetrics(base, context) {
   return {
     arrivalDeadline: journey.arrivalTime,
     scenarioArrival: capabilityBlocked ? null : toClock(estimatedArrivalMinute),
-    minutesPastArrival: capabilityBlocked ? null : Math.max(
-      0,
-      estimatedArrivalMinute - toMinutes(journey.arrivalTime),
-    ),
-    arrivalMarginMinutes: capabilityBlocked ? null : toMinutes(journey.arrivalTime) - estimatedArrivalMinute,
+    minutesPastArrival: capabilityBlocked
+      ? null
+      : Math.max(0, estimatedArrivalMinute - toMinutes(journey.arrivalTime)),
+    arrivalMarginMinutes: capabilityBlocked
+      ? null
+      : toMinutes(journey.arrivalTime) - estimatedArrivalMinute,
     capabilityBlocked,
     reservePolicyMinutes: journey.safetyBufferMinutes,
     readinessGapMinutes: Math.max(

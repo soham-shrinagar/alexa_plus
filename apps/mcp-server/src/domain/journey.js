@@ -105,7 +105,13 @@ export function localInstant(date, time, timezone) {
   return matches[0];
 }
 
+import { timeSync } from "../timing.js";
 export function buildJourney(input, profile, route, weather, now = Date.now()) {
+  return timeSync("planning.journey", () =>
+    compileJourney(input, profile, route, weather, now),
+  );
+}
+function compileJourney(input, profile, route, weather, now) {
   const arrivalMinute = toMinutes(input.arrivalTime);
   const rainMinutes = weather.raining ? input.rainBufferMinutes : 0;
   const departureMinute =

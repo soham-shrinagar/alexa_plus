@@ -2,6 +2,7 @@ import { AppError } from "../errors.js";
 import { rehearse, runtimeFingerprint } from "../domain/rehearsalEngine.js";
 import { buildMicroTwin } from "../domain/microTwinBuilder.js";
 import { assessEvidence } from "../domain/evidenceAssessment.js";
+import { compareScenarioSet } from "../domain/scenarioComparison.js";
 
 export class RehearsalService {
   constructor(service) {
@@ -42,6 +43,22 @@ export class RehearsalService {
         : null,
       sourceMode: useRuntime ? "runtime" : "proposal",
       evidence: source.base.context.evidence ?? [],
+    };
+  }
+  async compareSet(userId, input) {
+    const source = await this.source(
+      userId,
+      input.proposalId,
+      input.useRuntime,
+    );
+    return {
+      ...compareScenarioSet(source.base, source.context, input),
+      proposalId: input.proposalId,
+      sourceVersion: source.proposal.version,
+      sourceMode: input.useRuntime ? "runtime" : "proposal",
+      sourceRuntimeHash: source.activation
+        ? runtimeFingerprint(source.activation)
+        : null,
     };
   }
   async adopt(
@@ -147,7 +164,12 @@ export class RehearsalService {
       return {
         proposal,
         simulation,
-        evidenceAssessment:assessEvidence(routine,routine.context,Date.now(),simulation.status),
+        evidenceAssessment: assessEvidence(
+          routine,
+          routine.context,
+          Date.now(),
+          simulation.status,
+        ),
         changes: selected.changes,
         replacementPending: Boolean(source.activation),
         message: source.activation

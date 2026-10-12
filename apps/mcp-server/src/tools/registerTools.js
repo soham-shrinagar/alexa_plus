@@ -13,6 +13,8 @@ import {
 import { journeyInputSchema } from "../domain/journey.js";
 import { stressSchema, choiceSchema } from "../domain/rehearsalEngine.js";
 import { RehearsalService } from "../services/rehearsalService.js";
+import { scenarioSetSchema } from "../domain/scenarioComparison.js";
+import { withTimings } from "../timing.js";
 import { toJsonSchemaCompat } from "@modelcontextprotocol/sdk/server/zod-json-schema-compat.js";
 
 const scenarioId = z.string().min(1).max(80).default("personal-day");
@@ -63,6 +65,18 @@ export function registerTools(server, { service, telemetry }) {
     },
     { readOnlyHint: false, destructiveHint: false },
     (input, extra) => rehearsal.adopt(user(extra), input),
+  );
+  register(
+    "rehearsal.compare_set",
+    "Compare fixed schedules against up to eight independent hypothetical scenarios using unchanged evidence. Optional seed scenario produces up to two independently checked candidate alternatives. Counts are not probabilities; shocks are additional to retained buffers and policies. Never adopts or activates.",
+    {
+      proposalId: id,
+      scenarios: scenarioSetSchema,
+      candidateScenario: stressSchema.optional(),
+      useRuntime: z.boolean().default(false),
+    },
+    { readOnlyHint: true },
+    (input, extra) => rehearsal.compareSet(user(extra), input),
   );
   register(
     "place.search",
@@ -332,15 +346,17 @@ function user(extra) {
 function execute(name, telemetry, handler) {
   return async (args, extra) => {
     const started = performance.now();
+    const stages = [];
     try {
       requireScope(extra.authInfo, "mcp:tools");
       user(extra);
-      const result = await handler(args, extra);
+      const result = await withTimings(stages, () => handler(args, extra));
       telemetry.record({
         requestId: extra.requestId ?? "mcp",
         toolName: name,
         userId: extra.authInfo?.userId,
         status: "success",
+        stages,
         latencyMs: Math.round(performance.now() - started),
       });
       return { content: [resultText(result)], structuredContent: result };
@@ -357,6 +373,7 @@ function execute(name, telemetry, handler) {
         toolName: name,
         userId: extra.authInfo?.userId,
         status: "error",
+        stages,
         errorCode: app.code,
         latencyMs: Math.round(performance.now() - started),
       });

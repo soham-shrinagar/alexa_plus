@@ -65,8 +65,8 @@ test("multiple required capability failures block every choice without fabricate
     ],
   });
   assert.ok(result.options.every((option) => !option.feasible));
-  assert.equal(result.metrics.scenarioArrival,null);
-  assert.equal(result.metrics.arrivalMarginMinutes,null);
+  assert.equal(result.metrics.scenarioArrival, null);
+  assert.equal(result.metrics.arrivalMarginMinutes, null);
   assert.ok(
     result.unchanged.violations.filter(
       (issue) => issue.code === "CAPABILITY_UNAVAILABLE",
@@ -393,5 +393,54 @@ test("failed replacement persistence restores old runtime and unconsumed approva
   assert.equal(
     (await s.repository.getApproval("owner", approval.approval.id)).status,
     "PENDING",
+  );
+});
+test("concurrent recovery proposals can be reviewed but only one replaces a source runtime", async () => {
+  const s = await setup();
+  const original = await activate(s, s.proposal);
+  await s.service.injectEvent("owner", original.id, {
+    type: "TRAVEL_DELAY",
+    minutes: 15,
+  });
+  const input = {
+    proposalId: s.proposal.id,
+    useRuntime: true,
+    scenario: { events: [] },
+  };
+  const comparison = await s.rehearsal.compare("owner", input);
+  const adoption = {
+    ...input,
+    expectedVersion: 1,
+    sourceRuntimeHash: comparison.sourceRuntimeHash,
+    choice: "EARLIER_PREPARATION",
+    confirmed: true,
+  };
+  const recoveries = await Promise.all([
+    s.rehearsal.adopt("owner", adoption),
+    s.rehearsal.adopt("owner", adoption),
+  ]);
+  const approvals = await Promise.all(
+    recoveries.map((row) =>
+      s.service.requestActivation("owner", row.proposal.id),
+    ),
+  );
+  const results = await Promise.allSettled(
+    recoveries.map((row, index) =>
+      s.service.activate("owner", {
+        proposalId: row.proposal.id,
+        approvalId: approvals[index].approval.id,
+        confirmed: true,
+        idempotencyKey: `recovery-race-${index}`,
+      }),
+    ),
+  );
+  assert.equal(results.filter((row) => row.status === "fulfilled").length, 1);
+  assert.equal(
+    results.find((row) => row.status === "rejected").reason.code,
+    "STALE_RUNTIME",
+  );
+  assert.equal(
+    s.repository.activations.filter((row) => row.status === "ACTIVE").length,
+    1,
   );
 });

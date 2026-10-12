@@ -85,142 +85,182 @@
                 <span class="number">01</span>
                 <h2>What needs to happen?</h2>
               </div>
+              <p class="help">
+                Tell me the outcome. We can test a change together before you
+                commit.
+              </p>
+              <div
+                id="conversation"
+                class="conversation"
+                role="log"
+                aria-label="Conversation history"
+                aria-live="polite"
+              ></div>
               <label for="request">Your request</label
               ><textarea
                 id="request"
                 rows="5"
                 placeholder="Reach my office by 10am tomorrow. Allow 20 minutes to get ready and 10 to pack my laptop. Check traffic and weather."
               ></textarea>
-              <div class="form-grid">
-                <div>
-                  <label for="profile">Planning context</label
-                  ><select id="profile">
-                    <option value="personal-day">My day</option>
-                  </select>
-                </div>
-                <div>
-                  <label for="date">Date</label
-                  ><input id="date" type="date" required />
-                </div>
+              <div class="action-row voice-controls">
+                <button
+                  id="microphone"
+                  class="button secondary"
+                  aria-pressed="false"
+                >
+                  Start microphone</button
+                ><label
+                  ><input id="speak-responses" type="checkbox" /> Speak
+                  replies</label
+                ><button id="replay-response" class="button text">
+                  Replay response</button
+                ><button id="stop-speaking" class="button text">
+                  Stop speaking</button
+                ><button id="cancel-conversation" class="button text">
+                  Cancel
+                </button>
               </div>
-              <details id="journey-details" class="fold">
-                <summary>
-                  Journey details
-                  <span id="places-summary">Locations needed for travel</span>
-                </summary>
-                <p class="help">
-                  Search a street or area with a city. Select the intended
-                  result.
-                </p>
-                <label for="origin">From</label>
-                <div class="search-field">
-                  <input
-                    id="origin"
-                    placeholder="Starting street, area and city"
-                  /><button
-                    id="search-origin"
-                    class="icon-button"
-                    aria-label="Search origin"
-                    data-work
-                  >
-                    <span data-icon="search"></span>
-                  </button>
-                </div>
-                <div id="origin-results" class="place-results"></div>
-                <p id="origin-selected" class="selection-note">
-                  No origin selected
-                </p>
-                <label for="destination">To</label>
-                <div class="search-field">
-                  <input
-                    id="destination"
-                    placeholder="Destination street, area and city"
-                  /><button
-                    id="search-destination"
-                    class="icon-button"
-                    aria-label="Search destination"
-                    data-work
-                  >
-                    <span data-icon="search"></span>
-                  </button>
-                </div>
-                <div id="destination-results" class="place-results"></div>
-                <p id="destination-selected" class="selection-note">
-                  No destination selected
-                </p>
+              <p id="voice-status" class="help" role="status">
+                Voice is optional. Review and correct transcripts before
+                sending. Browser recognition may send audio to its own service.
+              </p>
+              <details id="planning-context" class="fold">
+                <summary>Planning context & locations</summary>
                 <div class="form-grid">
                   <div>
-                    <label for="arrival">Arrive by</label
-                    ><input id="arrival" type="time" />
-                  </div>
-                  <div>
-                    <label for="mode">Travel mode</label
-                    ><select id="mode">
-                      <option value="car">Drive</option>
-                      <option value="pedestrian">Walk</option>
-                      <option value="bicycle">Cycle</option>
+                    <label for="profile">Planning context</label
+                    ><select id="profile">
+                      <option value="personal-day">My day</option>
                     </select>
                   </div>
-                </div>
-                <label for="timezone">Local timezone</label
-                ><input id="timezone" required />
-                <button id="sample-places" class="button text small" data-work>
-                  Use public Pune demo locations ↗
-                </button>
-              </details>
-              <details class="fold">
-                <summary>
-                  Preparation & allowances <span>Adjust to your day</span>
-                </summary>
-                <div class="form-grid">
                   <div>
-                    <label for="prep">Getting ready · min</label
-                    ><input
-                      id="prep"
-                      type="number"
-                      min="0"
-                      max="240"
-                      value="20"
-                    />
-                  </div>
-                  <div>
-                    <label for="safety">Arrival buffer · min</label
-                    ><input
-                      id="safety"
-                      type="number"
-                      min="0"
-                      max="60"
-                      value="10"
-                    />
-                  </div>
-                  <div>
-                    <label for="rain">Rain allowance · min</label
-                    ><input
-                      id="rain"
-                      type="number"
-                      min="0"
-                      max="60"
-                      value="10"
-                    />
-                  </div>
-                  <div>
-                    <label for="lead">Reminder before prep · min</label
-                    ><input
-                      id="lead"
-                      type="number"
-                      min="0"
-                      max="120"
-                      value="5"
-                    />
+                    <label for="date">Date</label
+                    ><input id="date" type="date" required />
                   </div>
                 </div>
-                <p class="help">
-                  Additional tasks need their own durations in your request.
-                  Allowances are your policy, not measured weather delays.
-                </p>
+                <details id="journey-details" class="fold">
+                  <summary>
+                    Journey details
+                    <span id="places-summary">Locations needed for travel</span>
+                  </summary>
+                  <p class="help">
+                    Search a street or area with a city. Select the intended
+                    result.
+                  </p>
+                  <label for="origin">From</label>
+                  <div class="search-field">
+                    <input
+                      id="origin"
+                      placeholder="Starting street, area and city"
+                    /><button
+                      id="search-origin"
+                      class="icon-button"
+                      aria-label="Search origin"
+                      data-work
+                    >
+                      <span data-icon="search"></span>
+                    </button>
+                  </div>
+                  <div id="origin-results" class="place-results"></div>
+                  <p id="origin-selected" class="selection-note">
+                    No origin selected
+                  </p>
+                  <label for="destination">To</label>
+                  <div class="search-field">
+                    <input
+                      id="destination"
+                      placeholder="Destination street, area and city"
+                    /><button
+                      id="search-destination"
+                      class="icon-button"
+                      aria-label="Search destination"
+                      data-work
+                    >
+                      <span data-icon="search"></span>
+                    </button>
+                  </div>
+                  <div id="destination-results" class="place-results"></div>
+                  <p id="destination-selected" class="selection-note">
+                    No destination selected
+                  </p>
+                  <div class="form-grid">
+                    <div>
+                      <label for="arrival">Arrive by</label
+                      ><input id="arrival" type="time" />
+                    </div>
+                    <div>
+                      <label for="mode">Travel mode</label
+                      ><select id="mode">
+                        <option value="car">Drive</option>
+                        <option value="pedestrian">Walk</option>
+                        <option value="bicycle">Cycle</option>
+                      </select>
+                    </div>
+                  </div>
+                  <label for="timezone">Local timezone</label
+                  ><input id="timezone" required />
+                  <button
+                    id="sample-places"
+                    class="button text small"
+                    data-work
+                  >
+                    Use public Pune demo locations ↗
+                  </button>
+                </details>
+                <details class="fold">
+                  <summary>
+                    Preparation & allowances <span>Adjust to your day</span>
+                  </summary>
+                  <div class="form-grid">
+                    <div>
+                      <label for="prep">Getting ready · min</label
+                      ><input
+                        id="prep"
+                        type="number"
+                        min="0"
+                        max="240"
+                        value="20"
+                      />
+                    </div>
+                    <div>
+                      <label for="safety">Arrival buffer · min</label
+                      ><input
+                        id="safety"
+                        type="number"
+                        min="0"
+                        max="60"
+                        value="10"
+                      />
+                    </div>
+                    <div>
+                      <label for="rain">Rain allowance · min</label
+                      ><input
+                        id="rain"
+                        type="number"
+                        min="0"
+                        max="60"
+                        value="10"
+                      />
+                    </div>
+                    <div>
+                      <label for="lead">Reminder before prep · min</label
+                      ><input
+                        id="lead"
+                        type="number"
+                        min="0"
+                        max="120"
+                        value="5"
+                      />
+                    </div>
+                  </div>
+                  <p class="help">
+                    Additional tasks need their own durations in your request.
+                    Allowances are your policy, not measured weather delays.
+                  </p>
+                </details>
               </details>
               <button id="plan" class="button primary full" disabled data-work>
-                <span data-icon="arrow"></span>Build my plan
+                <span data-icon="arrow"></span>Send request
               </button>
               <p class="subtle small">
                 Requests are interpreted by Gemini. Locations are used only when
@@ -244,32 +284,46 @@
                   Check a real forecast
                 </button>
               </details>
-              <div
-                id="conversation"
-                class="conversation"
-                aria-live="polite"
-              ></div>
             </aside>
             <div class="outcome-column">
-              <div class="outcome-toolbar">
-                <span class="eyebrow">Your plan</span
-                ><span id="plan-status" class="badge neutral">No plan yet</span>
+              <div
+                id="compact-plan"
+                class="panel compact-plan"
+                aria-live="polite"
+              >
+                <h2>One outcome. A plan you can inspect.</h2>
+                <p>Your key times and choices will appear here.</p>
               </div>
-              <div id="plan-board" class="panel plan-board">
-                <div class="empty-board">
-                  <span class="empty-route" aria-hidden="true"
-                    >◦ ───── ◦ ───── ↗</span
+              <div
+                id="conversation-alternatives"
+                class="alternative-grid"
+                aria-live="polite"
+              ></div>
+              <details id="under-the-hood" class="panel">
+                <summary>Plan details · under the hood</summary>
+                <div class="outcome-toolbar">
+                  <span class="eyebrow">Your plan</span
+                  ><span id="plan-status" class="badge neutral"
+                    >No plan yet</span
                   >
-                  <h2>Make the timing visible.</h2>
-                  <p>
-                    Your preparation, travel and deadline belong in the same
-                    plan.<br />Describe an outcome to build the first timeline.
-                  </p>
-                  <div class="empty-sequence">
-                    <span>Prepare</span><span>Travel</span><span>Arrive</span>
+                </div>
+                <div id="plan-board" class="panel plan-board">
+                  <div class="empty-board">
+                    <span class="empty-route" aria-hidden="true"
+                      >◦ ───── ◦ ───── ↗</span
+                    >
+                    <h2>Make the timing visible.</h2>
+                    <p>
+                      Your preparation, travel and deadline belong in the same
+                      plan.<br />Describe an outcome to build the first
+                      timeline.
+                    </p>
+                    <div class="empty-sequence">
+                      <span>Prepare</span><span>Travel</span><span>Arrive</span>
+                    </div>
                   </div>
                 </div>
-              </div>
+              </details>
               <div id="plan-actions" class="action-row" hidden>
                 <button id="open-rehearsal" class="button secondary" data-work>
                   <span data-icon="rehearse"></span>Rehearse a change</button
@@ -418,16 +472,51 @@
                 </button>
               </div>
             </aside>
-            <div id="comparison-board">
-              <div class="panel empty-board">
-                <span class="empty-route" aria-hidden="true">↗ ↔ ↗</span>
-                <h2>See the cost of a change.</h2>
+            <section>
+              <div class="panel">
+                <h2>Across different conditions</h2>
                 <p>
-                  Traffic, rain or a lost capability can break a good plan.<br />Compare
-                  earlier preparation and a later deadline before choosing.
+                  Test fixed schedules across separate hypothetical shocks.
+                  Candidates come from the last combined comparison; every row
+                  is additional to its retained allowances.
                 </p>
+                <fieldset id="scenario-set-choices">
+                  <legend>Scenarios to evaluate</legend>
+                  <label
+                    ><input type="checkbox" value="expected" checked /> Expected
+                    conditions</label
+                  ><label
+                    ><input type="checkbox" value="5" checked /> +5 min
+                    travel</label
+                  ><label
+                    ><input type="checkbox" value="15" checked /> +15 min
+                    travel</label
+                  ><label
+                    ><input type="checkbox" value="30" /> +30 min travel</label
+                  ><label
+                    ><input type="checkbox" value="rain" checked /> Rain</label
+                  ><label
+                    ><input type="checkbox" value="failure" /> Required
+                    departure capability unavailable (or first task capability
+                    for a household plan)</label
+                  >
+                </fieldset>
+                <button id="compare-set" class="button secondary" data-work>
+                  Compare scenario set
+                </button>
               </div>
-            </div>
+              <div id="scenario-set-board" aria-live="polite"></div>
+              <div id="comparison-board">
+                <div class="panel empty-board">
+                  <span class="empty-route" aria-hidden="true">↗ ↔ ↗</span>
+                  <h2>See the cost of a change.</h2>
+                  <p>
+                    Traffic, rain or a lost capability can break a good plan.<br />Compare
+                    earlier preparation and a later deadline before choosing.
+                  </p>
+                </div>
+              </div>
+            </section>
           </div>
         </section>
         <section id="view-saved" class="page-view" hidden>

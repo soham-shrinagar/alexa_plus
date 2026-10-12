@@ -1,6 +1,8 @@
 import { McpBrowserClient } from "../mcpClient.js";
 import { scenarioFromControls, describeChange } from "./decisionModel.js";
 import { confirmAction } from "../approvalDialog.js";
+import { VoiceController } from "./voice.js";
+import { followUp, concisePlan } from "./conversationModel.js";
 import {
   state,
   readPreference,
@@ -15,6 +17,7 @@ import {
   setNotice,
   appendMessage,
   addTrace,
+  onAssistantResponse,
 } from "./dom.js";
 import {
   showPage,
@@ -32,6 +35,67 @@ import {
 } from "./household.js";
 
 const client = new McpBrowserClient({ onActivity: addTrace });
+let reviewWaitMs = 0;
+const voice = new VoiceController({
+  recognition: window.SpeechRecognition ?? window.webkitSpeechRecognition,
+  synthesis: window.speechSynthesis,
+  Utterance: window.SpeechSynthesisUtterance,
+  onTranscript: (text) => {
+    $("#request").value = text;
+  },
+  onState: (text) => {
+    $("#voice-status").textContent = text;
+    $("#microphone").textContent = voice.listening
+      ? "Stop microphone"
+      : "Start microphone";
+    $("#microphone").setAttribute("aria-pressed", String(voice.listening));
+  },
+});
+onAssistantResponse((text) => voice.speak(text));
+$("#microphone").disabled = !voice.inputSupported;
+if (!voice.inputSupported)
+  $("#voice-status").textContent =
+    "Speech recognition is unavailable in this browser. Text input works normally. Playback may still be available.";
+$("#microphone").addEventListener("click", () =>
+  voice.listening ? voice.stopListening() : voice.start(),
+);
+$("#speak-responses").disabled = !voice.outputSupported;
+$("#speak-responses").addEventListener("change", () => {
+  voice.enabled = $("#speak-responses").checked;
+  if (!voice.enabled) voice.stopSpeaking();
+});
+$("#replay-response").disabled = !voice.outputSupported;
+$("#replay-response").addEventListener("click", () => voice.replay());
+$("#stop-speaking").addEventListener("click", () => voice.stopSpeaking());
+function cancelConversation() {
+  voice.cancel();
+  voice.enabled=false;$("#speak-responses").checked=false;
+  if ($("#review-dialog").open) $("#review-dialog").close("cancel");
+  setNotice(
+    "Cancelled listening/playback and any open review. An in-flight planning request may still finish with an inert proposal; no execution approval was granted.",
+  );
+}
+$("#cancel-conversation").addEventListener("click", cancelConversation);
+$("#request").addEventListener("input", () => voice.stopSpeaking());
+window.addEventListener("pagehide", () => voice.cancel());
+$("#under-the-hood").append($("#evidence-panel"));
+const conversationAudit = element("section");
+conversationAudit.append(element("h3", "Plan audit"));
+const auditButton = element(
+  "button",
+  "Load this plan's audit",
+  "button secondary",
+);
+auditButton.dataset.work = "";
+auditButton.addEventListener("click", () => run(loadAudit));
+conversationAudit.append(
+  auditButton,
+  Object.assign(element("div"), { id: "conversation-audit" }),
+);
+$("#under-the-hood").append(conversationAudit);
+const activity = element("section");
+activity.append(element("h3", "MCP activity"), $("#tool-trace"));
+$("#under-the-hood").append(activity);
 decorateIcons();
 const emptyBoard = $("#plan-board").innerHTML;
 const emptyComparison = $("#comparison-board").innerHTML;
@@ -54,7 +118,7 @@ document
   .forEach((button) =>
     button.addEventListener("click", () => navigate(button.dataset.view)),
   );
-bind("plan", plan);
+bind("plan", converse);
 bind("search-origin", () => searchPlace("origin"));
 bind("search-destination", () => searchPlace("destination"));
 bind("sample-places", () => {
@@ -82,6 +146,12 @@ bind("new-plan", () => {
       "Stop the current simulation before starting another plan.",
     );
   state.proposal = null;
+  voice.cancel();
+  $("#conversation-alternatives").replaceChildren();
+  $("#compact-plan").replaceChildren(
+    element("h2", "Describe the next outcome."),
+  );
+  $("#scenario-set-board").replaceChildren();
   state.evidenceAssessment = null;
   state.simulation = null;
   state.activation = null;
@@ -136,12 +206,98 @@ bind("open-rehearsal", () => {
   return compare();
 });
 bind("compare", compare);
-$("#stress-delay").addEventListener("input", updateStressLabel);
-for(const id of ["stress-delay","stress-rain","stress-capability","stress-task","stress-task-minutes","stress-runtime","failure-capabilities"])$("#"+id).addEventListener("change",()=>{
-  if(!state.comparison)return;
-  state.comparison=null;$("#comparison-board").innerHTML=emptyComparison;
-  setNotice("Conditions changed. Compare again before selecting an alternative.");
+bind("compare-set", async () => {
+  requirePlan();
+  const hasDeparture = state.proposal.routine.constraints.some(
+    (rule) => rule.type === "DEADLINE",
+  );
+  const scenarios = [
+    ...$("#scenario-set-choices").querySelectorAll("input:checked"),
+  ].map((input) => {
+    const key = input.value;
+    if (/^\d+$/.test(key) && !hasDeparture)
+      throw new Error(
+        "Uncheck travel delays: this plan has no departure deadline.",
+      );
+    const capability =
+      state.proposal.routine.steps.find((step) => step.departure)?.capability ??
+      state.proposal.routine.steps[0].capability;
+    return {
+      id: `scenario-${key}`,
+      label:
+        key === "expected"
+          ? "Expected"
+          : key === "rain"
+            ? "Rain"
+            : key === "failure"
+              ? `${capability} unavailable`
+              : `+${key} min travel`,
+      scenario: {
+        events:
+          key === "expected"
+            ? []
+            : key === "rain"
+              ? [{ type: "RAIN", raining: true }]
+              : key === "failure"
+                ? [{ type: "CAPABILITY_UNAVAILABLE", capability }]
+                : [{ type: "TRAVEL_DELAY", minutes: Number(key) }],
+      },
+    };
+  });
+  if (!scenarios.length) throw new Error("Select at least one scenario.");
+  const result = await client.callTool("rehearsal.compare_set", {
+    proposalId: state.proposal.id,
+    scenarios,
+    useRuntime: $("#stress-runtime").checked,
+    ...(state.comparison
+      ? { candidateScenario: state.comparison.scenario }
+      : {}),
+  });
+  const board = $("#scenario-set-board");
+  board.replaceChildren();
+  board.append(element("p", result.interpretation, "help"));
+  for (const candidate of result.candidates) {
+    const card = element("section", null, "panel");
+    card.append(
+      element("h3", candidate.title),
+      element(
+        "p",
+        `${candidate.passingScenarios} of ${candidate.evaluatedScenarios} scenarios pass the implemented constraints.`,
+      ),
+    );
+    for (const row of candidate.rows)
+      card.append(
+        element(
+          "p",
+          `${row.label}: ${row.verification.status} · arrival margin ${row.metrics?.arrivalMarginMinutes ?? "not evaluable"} min · ${row.verification.violations.map((issue) => issue.message).join(" ") || "No declared constraint violation."}`,
+        ),
+      );
+    for (const change of candidate.changes)
+      card.append(element("small", describeChange(change)));
+    board.append(card);
+  }
+  setNotice(
+    "Scenario set checked independently. Counts are not probabilities; no plan was changed.",
+  );
 });
+$("#stress-delay").addEventListener("input", updateStressLabel);
+for (const id of [
+  "stress-delay",
+  "stress-rain",
+  "stress-capability",
+  "stress-task",
+  "stress-task-minutes",
+  "stress-runtime",
+  "failure-capabilities",
+])
+  $("#" + id).addEventListener("change", () => {
+    if (!state.comparison) return;
+    state.comparison = null;
+    $("#comparison-board").innerHTML = emptyComparison;
+    setNotice(
+      "Conditions changed. Compare again before selecting an alternative.",
+    );
+  });
 document.querySelectorAll("[data-delay]").forEach((button) =>
   button.addEventListener("click", () =>
     run(async () => {
@@ -332,6 +488,10 @@ bind("save-household", async () => {
     "Household saved. New plans use these rules; existing plans retain their snapshots.",
   );
 });
+appendMessage(
+  "assistant",
+  "What do you need to make happen? Tell me the outcome and timing. I’ll ask for missing facts, then we can test disruptions before you approve anything.",
+);
 connect().catch((error) => setNotice(error.message, true));
 
 function bind(id, action) {
@@ -340,14 +500,22 @@ function bind(id, action) {
 async function run(action) {
   if (state.busy || !state.connected) return;
   state.busy = true;
+  const started = performance.now(),
+    priorReviewWait = reviewWaitMs;
   controls();
   try {
     await action();
   } catch (error) {
     setNotice(error.message, true);
+    appendMessage("assistant", error.message);
   } finally {
     state.busy = false;
     controls();
+    const wait = reviewWaitMs - priorReviewWait;
+    addTrace(
+      "User-visible operation",
+      `${Math.round(Math.max(0, performance.now() - started - wait))} ms through browser rendering and service calls; ${Math.round(wait)} ms human review excluded`,
+    );
   }
 }
 function requirePlan() {
@@ -370,7 +538,8 @@ function controls() {
   $("#revision-panel").hidden = !p || Boolean(p.routine.journey) || active;
   $("#approve").hidden = !p || active || p.status === "ROLLED_BACK";
   $("#approve").disabled = !passed || state.busy;
-  if(state.evidenceAssessment?.approvalEvidenceSatisfied===false)$("#approve").disabled=true;
+  if (state.evidenceAssessment?.approvalEvidenceSatisfied === false)
+    $("#approve").disabled = true;
   $("#export").hidden = !p?.routine.journey;
   $("#export").disabled =
     state.busy ||
@@ -383,13 +552,16 @@ function controls() {
     !p || p.routine.journey || active || !state.simulation?.violations?.length;
   $("#recover-plan").disabled = state.busy || !active;
   $("#stress-runtime").disabled = !active;
-  $("#plan").textContent = state.busy ? "Working…" : "Build my plan";
+  $("#plan").textContent = state.busy ? "Working…" : "Send request";
+  $("#microphone").disabled = state.busy || !voice.inputSupported;
   $("#load-audit").disabled = state.busy || !p;
   const hasDeparture = Boolean(
     p?.routine.constraints.some((rule) => rule.type === "DEADLINE"),
   );
-  $("#view-rehearse").querySelectorAll("input,select").forEach(input=>input.disabled=!state.connected||state.busy);
-  $("#stress-runtime").disabled=!active||state.busy;
+  $("#view-rehearse")
+    .querySelectorAll("input,select")
+    .forEach((input) => (input.disabled = !state.connected || state.busy));
+  $("#stress-runtime").disabled = !active || state.busy;
   $("#stress-delay").disabled = state.busy || !hasDeparture;
   document.querySelectorAll("[data-delay]").forEach((button) => {
     if (Number(button.dataset.delay) > 0 && !hasDeparture)
@@ -478,6 +650,111 @@ function restoreContext() {
   for (const field of ["origin", "destination"])
     if (saved[field]) selectPlace(field, saved[field]);
 }
+async function converse() {
+  const message = $("#request").value.trim();
+  const action = followUp(message);
+  voice.stopListening();
+  voice.stopSpeaking();
+  if (action.kind === "cancel") {
+    cancelConversation();
+    return;
+  }
+  if (action.kind === "new") {
+    $("#request").value = action.message;
+    state.history = [];
+    return plan();
+  }
+  if (action.kind === "unknown" && !state.proposal) return plan();
+  appendMessage("user", message);
+  if (action.kind === "details") {
+    $("#under-the-hood").open = true;
+    $("#evidence-panel").open = true;
+    appendMessage(
+      "assistant",
+      "Plan details are open below: inspect the timeline, rules, sources and MCP activity.",
+    );
+    return;
+  }
+  if (action.kind === "clarify") {
+    appendMessage("assistant", action.reply);
+    return;
+  }
+  if (!state.proposal) {
+    appendMessage(
+      "assistant",
+      "Build or open a plan before asking about its alternatives.",
+    );
+    return;
+  }
+  if (action.kind === "rehearse") {
+    const result = await client.callTool("rehearsal.compare", {
+      proposalId: state.proposal.id,
+      scenario: action.scenario,
+      useRuntime: Boolean(state.activation),
+    });
+    state.comparison = result;
+    renderComparison((option) => run(() => chooseAlternative(option)));
+    const spokenChoices = result.options.map(
+      (option, index) =>
+        `${index + 1}. ${option.title}: ${option.feasible && option.routine?.journey ? `prepare at ${option.routine.journey.readyTime}, arrive by ${option.routine.journey.arrivalTime}` : option.feasible ? "timing repair passes the declared rules" : `blocked: ${option.blockers[0]?.message ?? "not modeled"}`}`,
+    );
+    appendMessage(
+      "assistant",
+      `${result.unchanged.status === "PASSED" ? "Your current timing still passes the declared rules." : "These hypothetical conditions conflict with your current timing."} ${spokenChoices.join(". ")}. Choose an option to review; nothing has started.`,
+    );
+    setNotice(
+      "Hypothetical conditions checked against the current plan. Review a choice below.",
+    );
+    return;
+  }
+  if (action.kind === "choice") {
+    const option = state.comparison?.options[action.index];
+    if (!option) {
+      appendMessage(
+        "assistant",
+        "Compare a scenario first so I can identify that choice.",
+      );
+      return;
+    }
+    if (!option.feasible) {
+      appendMessage(
+        "assistant",
+        `That choice is blocked: ${option.blockers.map((issue) => issue.message).join(" ")}`,
+      );
+      return;
+    }
+    return chooseAlternative(option);
+  }
+  if (action.kind === "why") {
+    const blocked =
+      state.comparison?.options.filter((option) => !option.feasible) ?? [];
+    appendMessage(
+      "assistant",
+      blocked.length
+        ? blocked
+            .map(
+              (option) =>
+                `${option.title}: ${option.blockers.map((issue) => issue.message).join(" ")}`,
+            )
+            .join(" ")
+        : state.simulation?.violations?.length
+          ? state.simulation.violations.map((issue) => issue.message).join(" ")
+          : "No current alternative is marked blocked. Name the option or compare a disruption first.",
+    );
+    return;
+  }
+  if (action.kind === "review") {
+    appendMessage(
+      "assistant",
+      "Words are not execution approval. Use Review & start simulation to review the exact version and confirm separately.",
+    );
+    return;
+  }
+  appendMessage(
+    "assistant",
+    "Do you want a new plan or a change to this one? Say ‘new plan: …’ for a new outcome, ask ‘what if traffic is 15 minutes worse?’, or use the explicit revision controls in details. I won't replace your plan by guessing.",
+  );
+}
 async function plan() {
   const message = $("#request").value.trim();
   if (message.length < 3) throw new Error("Describe the outcome first.");
@@ -503,12 +780,16 @@ async function plan() {
     .filter(Boolean)
     .join("\n");
   state.history.push({ role: "assistant", text: reply.slice(0, 2000) });
-  appendMessage("assistant", reply);
+  appendMessage(
+    "assistant",
+    result.proposal ? concisePlan(result.proposal, result.simulation) : reply,
+  );
   for (const step of result.trace ?? [])
     addTrace("Workflow", `${step.tool}: ${step.purpose ?? step.status}`);
   for (const [field, results] of Object.entries(result.locations ?? {})) {
     showPlaces(field, results);
     $("#journey-details").open = true;
+    $("#planning-context").open = true;
   }
   if (result.proposal) await adopt(result);
   else if (result.evidence && !state.proposal) {
@@ -526,8 +807,10 @@ async function plan() {
   );
 }
 async function adopt(result) {
+  $("#conversation-alternatives").replaceChildren();
+  $("#scenario-set-board").replaceChildren();
   state.proposal = result.proposal;
-  state.evidenceAssessment=result.evidenceAssessment??null;
+  state.evidenceAssessment = result.evidenceAssessment ?? null;
   state.simulation = result.simulation ?? null;
   state.activation = result.activation ?? null;
   state.comparison = null;
@@ -548,11 +831,12 @@ async function adopt(result) {
   await listPlans();
 }
 async function loadPlan(id, navigateToPlan = true) {
+  $("#conversation-alternatives").replaceChildren();
   const result = await client.callTool("routine.get_status", {
     proposalId: id,
   });
   state.proposal = result.proposal;
-  state.evidenceAssessment=result.evidenceAssessment??null;
+  state.evidenceAssessment = result.evidenceAssessment ?? null;
   state.simulation = result.simulation;
   state.activation = result.activation;
   state.comparison = null;
@@ -564,6 +848,7 @@ async function loadPlan(id, navigateToPlan = true) {
   populateCapabilities();
   controls();
   if (navigateToPlan) showPage("plan");
+  appendMessage("assistant", concisePlan(state.proposal, state.simulation));
 }
 function syncPlanForm() {
   $("#request").value = state.proposal.goal;
@@ -745,9 +1030,10 @@ async function approve() {
     proposalId: state.proposal.id,
   });
   state.proposal.status = "AWAITING_APPROVAL";
-  state.evidenceAssessment=request.evidenceAssessment??state.evidenceAssessment;
+  state.evidenceAssessment =
+    request.evidenceAssessment ?? state.evidenceAssessment;
   renderPlan();
-  const text = `${state.proposal.routine.title}\n${state.proposal.routine.lineage?.changeSummary ?? state.proposal.routine.explanation ?? state.proposal.goal}\nVersion ${request.proposalVersion} · ${request.impact.steps} steps. Verification: ${request.verificationStatus??"PASSED"}. Evidence: ${request.evidenceAssessment?.freshnessStatus??"not assessed"} / ${request.evidenceAssessment?.completenessStatus??"not assessed"}.\n${request.evidenceAssessment?.warnings.map(warning=>warning.message).join("\n")??""}\nApproval expires at ${new Date(request.approval.expiresAt).toLocaleTimeString()}.\n${request.impact.replacingRuntime ? "The paused source runtime will be stopped and this recovery plan will replace it atomically." : "This starts the reviewed version in the simulated runtime."}`;
+  const text = `${state.proposal.routine.title}\n${state.proposal.routine.lineage?.changeSummary ?? state.proposal.routine.explanation ?? state.proposal.goal}\nVersion ${request.proposalVersion} · ${request.impact.steps} steps. Verification: ${request.verificationStatus ?? "PASSED"}. Evidence: ${request.evidenceAssessment?.freshnessStatus ?? "not assessed"} / ${request.evidenceAssessment?.completenessStatus ?? "not assessed"}.\n${request.evidenceAssessment?.warnings.map((warning) => warning.message).join("\n") ?? ""}\nApproval expires at ${new Date(request.approval.expiresAt).toLocaleTimeString()}.\n${request.impact.replacingRuntime ? "The paused source runtime will be stopped and this recovery plan will replace it atomically." : "This starts the reviewed version in the simulated runtime."}`;
   if (
     !(await review("Start this verified simulation?", text, "Start simulation"))
   ) {
@@ -761,7 +1047,8 @@ async function approve() {
     idempotencyKey: crypto.randomUUID(),
   });
   state.activation = result.activation;
-  state.evidenceAssessment=result.evidenceAssessment??state.evidenceAssessment;
+  state.evidenceAssessment =
+    result.evidenceAssessment ?? state.evidenceAssessment;
   state.proposal.status = "ACTIVE";
   renderPlan();
   controls();
@@ -779,7 +1066,8 @@ async function runtimeEvent(event) {
     event,
   });
   state.activation = result.activation;
-  state.evidenceAssessment=result.evidenceAssessment??state.evidenceAssessment;
+  state.evidenceAssessment =
+    result.evidenceAssessment ?? state.evidenceAssessment;
   state.proposal.status = result.activation.status;
   state.simulation = result.simulation;
   state.comparison = null;
@@ -822,12 +1110,18 @@ async function loadAudit() {
       })
     ).events,
   );
+  $("#conversation-audit").replaceChildren(
+    ...[...$("#audit-list").children].map((node) => node.cloneNode(true)),
+  );
 }
 function review(title, message, confirmLabel = "Confirm") {
+  const started = performance.now();
   return confirmAction($("#review-dialog"), $("#review-copy"), {
     title,
     message,
     confirmLabel,
+  }).finally(() => {
+    reviewWaitMs += performance.now() - started;
   });
 }
 async function navigate(view) {
