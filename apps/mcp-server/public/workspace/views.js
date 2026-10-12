@@ -1,5 +1,6 @@
 import { state } from "./state.js";
 import { $, element, badge } from "./dom.js";
+import { describeChange, describeEvent, formatFacts } from "./decisionModel.js";
 export const pageCopy = {
   plan: [
     "The intention",
@@ -137,8 +138,7 @@ export function renderPlan() {
   board.append(timeline);
   if (state.simulation?.violations?.length) {
     const list = element("div", null, "finding-list");
-    for (const issue of state.simulation.violations)
-      list.append(element("div", issue.message, "finding blocked"));
+    renderConflicts(state.simulation, list);
     board.append(list);
   }
   if (j) {
@@ -259,12 +259,39 @@ export function renderComparison(onChoose) {
       `Scenario: ${result.assumptions.extraTravelMinutes} min extra travel · ${result.assumptions.raining ? "rain assumed" : "dry conditions"}${result.assumptions.unavailableCapabilities.length ? ` · unavailable: ${result.assumptions.unavailableCapabilities.join(", ")}` : ""}. The original plan has not changed.`,
     ),
   );
+  header.append(
+    element(
+      "p",
+      `Original verification: ${result.baseline.status} · Scenario verification: ${result.unchanged.status}. Hypothetical, not a provider observation.`,
+      "verification-line",
+    ),
+  );
+  if (result.appliedEvents?.length)
+    header.append(
+      element(
+        "p",
+        result.appliedEvents
+          .map((event) => describeEvent(event, result.affectedTasks))
+          .join(" · "),
+        "scenario-event-list",
+      ),
+    );
+  if (result.affectedTasks?.length)
+    header.append(
+      element(
+        "p",
+        `Affected: ${result.affectedTasks.map((task) => `${task.label}${task.originalDurationMinutes !== task.scenarioDurationMinutes ? ` (${task.originalDurationMinutes} → ${task.scenarioDurationMinutes} min)` : ""}`).join(" · ")}`,
+        "scenario-affected",
+      ),
+    );
+  for (const warning of result.unsupportedConditions ?? [])
+    header.append(element("p", warning, "scenario-affected"));
   if (result.metrics) {
     const metrics = element("div", null, "metric-row");
     for (const [value, label] of [
-      [result.metrics.scenarioArrival, "Scenario arrival estimate"],
+      [result.metrics.scenarioArrival ?? "Not evaluable", "Scenario arrival estimate"],
       [
-        result.metrics.arrivalMarginMinutes < 0
+        result.metrics.arrivalMarginMinutes == null ? "Required capability missing" : result.metrics.arrivalMarginMinutes < 0
           ? `${Math.abs(result.metrics.arrivalMarginMinutes)} min late`
           : `${result.metrics.arrivalMarginMinutes} min`,
         "Margin to arrival deadline",
@@ -281,6 +308,12 @@ export function renderComparison(onChoose) {
     header.append(metrics);
   }
   target.append(header);
+  if (result.unchanged.violations.length) {
+    const conflicts = element("section", null, "panel conflict-panel");
+    conflicts.append(element("h3", "Why this scenario fails"));
+    renderConflicts(result.unchanged, conflicts);
+    target.append(conflicts);
+  }
   const grid = element("div", null, "alternative-grid");
   for (const option of result.options) {
     const card = element("section", null, "panel alternative");
@@ -296,21 +329,37 @@ export function renderComparison(onChoose) {
         [j.readyTime, "Preparation"],
         [j.departureTime, "Departure"],
         [j.arrivalTime, "Arrival"],
+        [option.metrics?.scenarioArrival ?? "—", "Estimated arrival"],
       ]) {
         const cell = element("div");
         cell.append(element("b", value), element("small", label));
         times.append(cell);
       }
       card.append(times);
+      card.append(
+        element(
+          "p",
+          `${j.safetyBufferMinutes} min safety buffer · ${option.metrics?.arrivalMarginMinutes ?? "—"} min estimated arrival margin.`,
+          "help",
+        ),
+      );
     }
     const diffs = element("ul", null, "diff-list");
     for (const change of option.changes.slice(0, 5))
-      diffs.append(
-        element("li", `${change.label}: ${change.from} → ${change.to}`),
-      );
+      diffs.append(element("li", describeChange(change)));
     for (const issue of option.blockers.slice(0, 3))
       diffs.append(element("li", issue.message));
     card.append(diffs);
+    if (option.resolution)
+      card.append(
+        element(
+          "p",
+          option.resolution.changesDeadline
+            ? "Deadline changes only with this explicit choice; trusted household policies remain."
+            : "Required tasks and trusted policies remain. No required duration is shortened.",
+          "preserved-note",
+        ),
+      );
     const button = element(
       "button",
       option.feasible
@@ -335,6 +384,31 @@ export function renderComparison(onChoose) {
     ),
   );
   target.append(notes);
+}
+function renderConflicts(verification, parent) {
+  const facts = verification.summary?.explanation?.conflicts ?? [];
+  for (const issue of verification.violations) {
+    const finding = element("div", null, "finding blocked");
+    finding.append(element("strong", issue.message));
+    const detail = facts.find((item) => item.violationId === issue.id);
+    if (detail) {
+      finding.append(
+        element(
+          "p",
+          `Expected · ${formatFacts(detail.expected)}`,
+          "conflict-fact",
+        ),
+        element(
+          "p",
+          `Observed in this evaluation · ${formatFacts(detail.observed)}`,
+          "conflict-fact",
+        ),
+      );
+      if (detail.limitation)
+        finding.append(element("small", detail.limitation));
+    }
+    parent.append(finding);
+  }
 }
 export function renderSaved(onOpen) {
   const target = $("#saved-plans");

@@ -11,6 +11,7 @@ import { buildMicroTwin } from "../domain/microTwinBuilder.js";
 import { simulateRoutine } from "../domain/constraintEngine.js";
 import { repairRoutine } from "../domain/repairEngine.js";
 import { adaptRoutine } from "../domain/runtimeEngine.js";
+import { assertApprovalEvidence, assessEvidence } from "../domain/evidenceAssessment.js";
 
 const clock = z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/);
 export const requestInputSchema = z
@@ -408,6 +409,7 @@ export class RequestPlanner {
         simulation,
         trace,
         evidence: routine.context.evidence,
+        evidenceAssessment: assessEvidence(routine,routine.context,Date.now(),result.status),
       };
     });
   }
@@ -466,6 +468,7 @@ export class RequestPlanner {
         "The plan must pass verification before export.",
         { status: 409 },
       );
+    assertApprovalEvidence(proposal.routine,proposal.context);
     return calendarReminder(proposal);
   }
 }

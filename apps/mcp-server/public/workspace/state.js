@@ -9,6 +9,7 @@ export const state = {
   simulation: null,
   activation: null,
   comparison: null,
+  evidenceAssessment: null,
   history: [],
   places: {},
   view: "plan",
