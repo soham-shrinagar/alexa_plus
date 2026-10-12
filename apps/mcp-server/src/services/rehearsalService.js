@@ -1,6 +1,7 @@
 import { AppError } from "../errors.js";
 import { rehearse, runtimeFingerprint } from "../domain/rehearsalEngine.js";
 import { buildMicroTwin } from "../domain/microTwinBuilder.js";
+import { assessEvidence } from "../domain/evidenceAssessment.js";
 
 export class RehearsalService {
   constructor(service) {
@@ -146,6 +147,7 @@ export class RehearsalService {
       return {
         proposal,
         simulation,
+        evidenceAssessment:assessEvidence(routine,routine.context,Date.now(),simulation.status),
         changes: selected.changes,
         replacementPending: Boolean(source.activation),
         message: source.activation

@@ -12,6 +12,7 @@ import { builtInHouseholds, builtInHousehold, validateHousehold } from "../domai
 import { applyRevision } from "./plannerService.js";
 import { EnvironmentProvider } from "../providers/environment.js";
 import { runtimeFingerprint } from "../domain/rehearsalEngine.js";
+import { assessEvidence, assertApprovalEvidence } from "../domain/evidenceAssessment.js";
 
 export class RehearseService {
   constructor({ repository, planner, environment = new EnvironmentProvider(), toolCatalog = [], transactional = true }) {
@@ -21,9 +22,12 @@ export class RehearseService {
     // One lifecycle mutation includes its evidence and audit writes. The lock
     // also prevents concurrent calls from consuming one approval twice.
     if (transactional) for (const name of ["simulate", "repair", "revise", "requestActivation", "activate", "injectEvent", "rollback"]) {
-      this[name] = (userId, ...args) => repository.withUserLock(userId, (transactionRepository) => {
+      this[name] = (userId, ...args) => repository.withUserLock(userId, async (transactionRepository) => {
         const service = new RehearseService({ repository: transactionRepository, planner, environment, toolCatalog: this.toolCatalog, transactional: false });
-        return service[name](userId, ...args);
+        const result=await service[name](userId, ...args);
+        const routine=result.proposal?.routine??result.activation?.runtimeState.routine;
+        if(routine)result.evidenceAssessment=assessEvidence(routine,result.proposal?.context??result.activation.runtimeState.context,Date.now(),result.simulation?.status??null);
+        return result;
       });
     }
   }
@@ -179,14 +183,14 @@ export class RehearseService {
     const proposal = await this.repository.getProposal(userId, proposalId);
     assertEditable(proposal);
     const verification = simulateRoutine(proposal.routine, proposal.context);
-    assertFreshContext(proposal.context);
+    const evidenceAssessment=assertApprovalEvidence(proposal.routine,proposal.context);
     assertFutureJourney(proposal);
     await assertReplacement(this.repository, userId, proposal);
     if (verification.status !== "PASSED") throw new AppError("VERIFICATION_REQUIRED", "Repair and re-simulate the latest proposal before activation.", { status: 409 });
     const approval = await this.approvals.request(userId, "ACTIVATE_ROUTINE", activationPayload(proposal));
     await this.repository.updateProposal(userId, proposalId, { status: "AWAITING_APPROVAL" });
     await this.audit(userId, proposalId, "ACTIVATION_REQUESTED", { approvalId: approval.id, proposalVersion: proposal.version });
-    return { approval, proposalVersion: proposal.version, impact: { devices: proposal.microTwin.devices.map((item) => item.name), steps: proposal.routine.steps.length, replacingRuntime: proposal.routine.replacement?.activationId ?? null }, message: proposal.routine.replacement ? "Review this recovery plan. Confirmation stops the previous runtime and starts this exact verified alternative together." : "Review the verified routine and explicitly confirm activation." };
+    return { approval, proposalVersion: proposal.version, verificationStatus:verification.status, evidenceAssessment, selectedAlternative:proposal.routine.lineage??null, impact: { devices: proposal.microTwin.devices.map((item) => item.name), steps: proposal.routine.steps.length, replacingRuntime: proposal.routine.replacement?.activationId ?? null }, message: proposal.routine.replacement ? "Review this recovery plan. Confirmation stops the previous runtime and starts this exact verified alternative together." : "Review the verified routine and explicitly confirm activation." };
   }
 
   async activate(userId, { proposalId, approvalId, confirmed, idempotencyKey }) {
@@ -198,7 +202,7 @@ export class RehearseService {
       return { activation: previous, reused: true, message: "The original activation was returned; no action was repeated." };
     }
     assertEditable(proposal);
-    assertFreshContext(proposal.context);
+    assertApprovalEvidence(proposal.routine,proposal.context);
     assertFutureJourney(proposal);
     const replacing = await assertReplacement(this.repository, userId, proposal);
     if (simulateRoutine(proposal.routine, proposal.context).status !== "PASSED") throw new AppError("VERIFICATION_REQUIRED", "The latest proposal must pass verification before activation.", { status: 409 });
@@ -227,7 +231,7 @@ export class RehearseService {
     const proposal = await this.repository.getProposal(userId, proposalId);
     const activation = await this.repository.getActiveActivationForProposal(userId, proposalId);
     const simulation = await this.repository.latestSimulation(userId, proposalId, proposal.version);
-    return { proposal, activation, simulation };
+    return { proposal, activation, simulation, evidenceAssessment:assessEvidence(activation?.runtimeState.routine??proposal.routine,activation?.runtimeState.context??proposal.context,Date.now(),simulation?.status??null) };
   }
   async listPlans(userId, limit = 30) {
     const rows = await this.repository.listProposals(userId, limit);
@@ -272,10 +276,6 @@ function activationPayload(proposal) { return { proposalId: proposal.id, proposa
 function simulationInput(proposal, result) { return { proposalId: proposal.id, proposalVersion: proposal.version, status: result.status, violations: result.violations, trace: result.trace, summary: result.summary }; }
 function assertEditable(proposal) {
   if (["ACTIVE", "SUSPENDED", "ROLLED_BACK"].includes(proposal.status)) throw new AppError("PROPOSAL_LOCKED", "Compile a new proposal after activation or rollback; the approved version is immutable.", { status: 409 });
-}
-function assertFreshContext(context) {
-  if (context.dataMode !== "live") return;
-  if (!context.evidence?.length || context.evidence.some(item => !Number.isFinite(Date.parse(item.retrievedAt)) || Date.now() - Date.parse(item.retrievedAt) > 900000 || Date.parse(item.retrievedAt) > Date.now() + 60000)) throw new AppError("ENVIRONMENT_STALE", "Live evidence is missing or older than 15 minutes. Refresh and reverify before approval.", { status: 409 });
 }
 function assertFutureJourney(proposal) {
   if (proposal.routine.journey && Date.parse(proposal.routine.journey.reminderAt) <= Date.now()) throw new AppError("PLAN_ALREADY_STARTED", "The reminder time has passed. Create a new journey before approving it.", { status: 409 });

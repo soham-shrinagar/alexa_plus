@@ -121,6 +121,34 @@ test("request planner performs arrival routing, verification and calendar export
       scenario: { extraTravelMinutes: 15 },
     });
     assert.equal(compared.unchanged.status, "FAILED");
+    const combined = await invoke("rehearsal.compare", {
+      proposalId: result.proposal.id,
+      scenario: {
+        events: [
+          { type: "TRAVEL_DELAY", minutes: 15 },
+          { type: "RAIN", raining: true },
+          { type: "TASK_ALLOWANCE", stepId: "prepare-1", minutes: 10 },
+        ],
+      },
+    });
+    assert.equal(combined.appliedEvents.length, 3);
+    assert.equal(combined.options[0].routine.journey.readyTime, "08:15");
+    assert.equal(calls.filter((call) => call === "route").length, 1);
+    assert.equal(
+      (await invoke("routine.get_status", { proposalId: result.proposal.id }))
+        .proposal.version,
+      originalVersion,
+    );
+    const unsupported = await connection.call(
+      rpc("tools/call", {
+        name: "rehearsal.compare",
+        arguments: {
+          proposalId: result.proposal.id,
+          scenario: { events: [{ type: "POLICY_OVERRIDE" }] },
+        },
+      }),
+    );
+    assert.ok(unsupported.error || unsupported.result?.isError);
     assert.equal(
       compared.options.filter((option) => option.feasible).length,
       2,

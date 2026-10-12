@@ -1,4 +1,5 @@
 import { McpBrowserClient } from "../mcpClient.js";
+import { scenarioFromControls, describeChange } from "./decisionModel.js";
 import { confirmAction } from "../approvalDialog.js";
 import {
   state,
@@ -81,6 +82,7 @@ bind("new-plan", () => {
       "Stop the current simulation before starting another plan.",
     );
   state.proposal = null;
+  state.evidenceAssessment = null;
   state.simulation = null;
   state.activation = null;
   state.comparison = null;
@@ -135,18 +137,26 @@ bind("open-rehearsal", () => {
 });
 bind("compare", compare);
 $("#stress-delay").addEventListener("input", updateStressLabel);
+for(const id of ["stress-delay","stress-rain","stress-capability","stress-task","stress-task-minutes","stress-runtime","failure-capabilities"])$("#"+id).addEventListener("change",()=>{
+  if(!state.comparison)return;
+  state.comparison=null;$("#comparison-board").innerHTML=emptyComparison;
+  setNotice("Conditions changed. Compare again before selecting an alternative.");
+});
 document.querySelectorAll("[data-delay]").forEach((button) =>
   button.addEventListener("click", () =>
     run(async () => {
       $("#stress-delay").value = button.dataset.delay;
       $("#stress-rain").checked = false;
       $("#stress-capability").value = "";
+      resetExtraConditions();
       updateStressLabel();
       await compare();
     }),
   ),
 );
 bind("rain-test", () => {
+  resetExtraConditions();
+  $("#stress-capability").value = "";
   $("#stress-delay").value = 0;
   $("#stress-rain").checked = true;
   updateStressLabel();
@@ -360,6 +370,7 @@ function controls() {
   $("#revision-panel").hidden = !p || Boolean(p.routine.journey) || active;
   $("#approve").hidden = !p || active || p.status === "ROLLED_BACK";
   $("#approve").disabled = !passed || state.busy;
+  if(state.evidenceAssessment?.approvalEvidenceSatisfied===false)$("#approve").disabled=true;
   $("#export").hidden = !p?.routine.journey;
   $("#export").disabled =
     state.busy ||
@@ -374,6 +385,16 @@ function controls() {
   $("#stress-runtime").disabled = !active;
   $("#plan").textContent = state.busy ? "Working…" : "Build my plan";
   $("#load-audit").disabled = state.busy || !p;
+  const hasDeparture = Boolean(
+    p?.routine.constraints.some((rule) => rule.type === "DEADLINE"),
+  );
+  $("#view-rehearse").querySelectorAll("input,select").forEach(input=>input.disabled=!state.connected||state.busy);
+  $("#stress-runtime").disabled=!active||state.busy;
+  $("#stress-delay").disabled = state.busy || !hasDeparture;
+  document.querySelectorAll("[data-delay]").forEach((button) => {
+    if (Number(button.dataset.delay) > 0 && !hasDeparture)
+      button.disabled = true;
+  });
 }
 async function connect() {
   state.busy = true;
@@ -506,6 +527,7 @@ async function plan() {
 }
 async function adopt(result) {
   state.proposal = result.proposal;
+  state.evidenceAssessment=result.evidenceAssessment??null;
   state.simulation = result.simulation ?? null;
   state.activation = result.activation ?? null;
   state.comparison = null;
@@ -530,6 +552,7 @@ async function loadPlan(id, navigateToPlan = true) {
     proposalId: id,
   });
   state.proposal = result.proposal;
+  state.evidenceAssessment=result.evidenceAssessment??null;
   state.simulation = result.simulation;
   state.activation = result.activation;
   state.comparison = null;
@@ -618,20 +641,65 @@ function populateCapabilities() {
   $("#stress-capability").replaceChildren(...options);
   if (options.some((option) => option.value === selected))
     $("#stress-capability").value = selected;
+  $("#failure-capabilities").replaceChildren();
+  for (const option of options.filter((option) => option.value)) {
+    const label = element("label", null, "checkbox");
+    const input = element("input");
+    input.type = "checkbox";
+    input.value = option.value;
+    label.append(input, document.createTextNode(option.textContent));
+    $("#failure-capabilities").append(label);
+  }
+  const tasks = [element("option", "No task allowance")];
+  tasks[0].value = "";
+  for (const step of state.proposal?.routine.steps.filter(
+    (step) =>
+      !step.departure &&
+      ["manual_task", "prepare_person"].includes(step.capability),
+  ) ?? []) {
+    const option = element(
+      "option",
+      `${step.label} · ${step.durationMinutes} min`,
+    );
+    option.value = step.id;
+    tasks.push(option);
+  }
+  $("#stress-task").replaceChildren(...tasks);
+  if (
+    !state.proposal?.routine.constraints.some(
+      (rule) => rule.type === "DEADLINE",
+    )
+  ) {
+    $("#stress-delay").value = 0;
+    updateStressLabel();
+  }
 }
 function updateStressLabel() {
   $("#stress-value").textContent = `${$("#stress-delay").value} minutes`;
 }
+function resetExtraConditions() {
+  $("#stress-task").value = "";
+  $("#failure-capabilities")
+    .querySelectorAll("input")
+    .forEach((input) => (input.checked = false));
+}
 async function compare() {
   requirePlan();
   const useRuntime = $("#stress-runtime").checked;
-  const scenario = {
+  if ($("#stress-task").value && !$("#stress-task-minutes").checkValidity())
+    throw new Error("Choose a whole task allowance between 1 and 60 minutes.");
+  const scenario = scenarioFromControls({
     extraTravelMinutes: Number($("#stress-delay").value),
-    ...($("#stress-rain").checked ? { raining: true } : {}),
-    ...($("#stress-capability").value
-      ? { unavailableCapability: $("#stress-capability").value }
-      : {}),
-  };
+    raining: $("#stress-rain").checked,
+    capabilities: [
+      $("#stress-capability").value,
+      ...[...$("#failure-capabilities").querySelectorAll("input:checked")].map(
+        (input) => input.value,
+      ),
+    ],
+    stepId: $("#stress-task").value,
+    taskMinutes: Number($("#stress-task-minutes").value),
+  });
   setNotice(
     "Comparing the unchanged schedule and policy-preserving alternatives…",
   );
@@ -651,7 +719,7 @@ async function chooseAlternative(option) {
   if (
     !(await review(
       "Accept this alternative?",
-      `${option.title}\n${option.tradeoff}\n${option.changes.map((change) => `${change.label}: ${change.from} → ${change.to}`).join("\n")}\nA separate verified proposal will be saved. ${source.sourceMode === "runtime" ? "The source runtime stays unchanged until you approve its replacement." : "Execution does not start yet."}`,
+      `${option.title}\n${option.tradeoff}\n${option.changes.map(describeChange).join("\n")}\nVerification: ${option.verification?.status ?? "unmodeled"}.\nA separate verified proposal will be saved. ${source.sourceMode === "runtime" ? "The source runtime stays unchanged until you approve its replacement." : "Execution does not start yet."}`,
       "Save alternative",
     ))
   )
@@ -677,8 +745,9 @@ async function approve() {
     proposalId: state.proposal.id,
   });
   state.proposal.status = "AWAITING_APPROVAL";
+  state.evidenceAssessment=request.evidenceAssessment??state.evidenceAssessment;
   renderPlan();
-  const text = `${state.proposal.routine.title}\n${state.proposal.routine.lineage?.changeSummary ?? state.proposal.routine.explanation ?? state.proposal.goal}\nVersion ${request.proposalVersion} · ${request.impact.steps} steps. ${request.impact.replacingRuntime ? "The paused source runtime will be stopped and this recovery plan will replace it atomically." : "This starts the reviewed version in the simulated runtime."}`;
+  const text = `${state.proposal.routine.title}\n${state.proposal.routine.lineage?.changeSummary ?? state.proposal.routine.explanation ?? state.proposal.goal}\nVersion ${request.proposalVersion} · ${request.impact.steps} steps. Verification: ${request.verificationStatus??"PASSED"}. Evidence: ${request.evidenceAssessment?.freshnessStatus??"not assessed"} / ${request.evidenceAssessment?.completenessStatus??"not assessed"}.\n${request.evidenceAssessment?.warnings.map(warning=>warning.message).join("\n")??""}\nApproval expires at ${new Date(request.approval.expiresAt).toLocaleTimeString()}.\n${request.impact.replacingRuntime ? "The paused source runtime will be stopped and this recovery plan will replace it atomically." : "This starts the reviewed version in the simulated runtime."}`;
   if (
     !(await review("Start this verified simulation?", text, "Start simulation"))
   ) {
@@ -692,6 +761,7 @@ async function approve() {
     idempotencyKey: crypto.randomUUID(),
   });
   state.activation = result.activation;
+  state.evidenceAssessment=result.evidenceAssessment??state.evidenceAssessment;
   state.proposal.status = "ACTIVE";
   renderPlan();
   controls();
@@ -709,6 +779,7 @@ async function runtimeEvent(event) {
     event,
   });
   state.activation = result.activation;
+  state.evidenceAssessment=result.evidenceAssessment??state.evidenceAssessment;
   state.proposal.status = result.activation.status;
   state.simulation = result.simulation;
   state.comparison = null;

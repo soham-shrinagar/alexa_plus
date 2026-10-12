@@ -2,13 +2,138 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { buildJourney, journeyInputSchema } from "../src/domain/journey.js";
 import { builtInHousehold } from "../src/domain/household.js";
-import { rehearse } from "../src/domain/rehearsalEngine.js";
+import { rehearse, stressSchema } from "../src/domain/rehearsalEngine.js";
 import { RehearsalService } from "../src/services/rehearsalService.js";
 import { RehearseService } from "../src/services/rehearseService.js";
 import { MemoryRepository } from "../src/repositories/memoryRepository.js";
 import { buildMicroTwin } from "../src/domain/microTwinBuilder.js";
 
 const point = { label: "Public point", latitude: 1, longitude: 2 };
+test("typed empty scenario preserves baseline timing, verification and evidence", () => {
+  const base = routine();
+  const original = JSON.stringify(base);
+  const result = rehearse(base, base.context, { events: [] });
+  assert.deepEqual(result.unchanged, result.baseline);
+  assert.equal(
+    result.options[0].routine.journey.readyTime,
+    base.journey.readyTime,
+  );
+  assert.equal(result.appliedEvents.length, 0);
+  assert.equal(JSON.stringify(base), original);
+});
+test("combined delay, rain and task allowance propagate sequential preparation and verify every option", () => {
+  const base = routine();
+  const original = JSON.stringify(base);
+  const events = [
+    { type: "TRAVEL_DELAY", minutes: 15 },
+    { type: "RAIN", raining: true },
+    { type: "TASK_ALLOWANCE", stepId: "prepare-1", minutes: 10 },
+  ];
+  const result = rehearse(base, base.context, { events });
+  assert.equal(result.unchanged.status, "FAILED");
+  assert.ok(
+    result.unchanged.violations.some(
+      (issue) => issue.code === "RESOURCE_OVERLAP",
+    ),
+  );
+  assert.equal(result.options[0].routine.journey.readyTime, "08:15");
+  assert.equal(result.options[0].routine.steps[0].durationMinutes, 30);
+  assert.equal(result.options[1].routine.journey.arrivalTime, "10:35");
+  assert.equal(result.options[1].routine.journey.readyTime, "08:50");
+  assert.ok(
+    result.options.every((option) => option.verification.status === "PASSED"),
+  );
+  assert.deepEqual(
+    result.options[0].routine.context.evidence,
+    base.context.evidence,
+  );
+  assert.equal(result.options[0].routine.context.weather.raining, false);
+  assert.ok(result.appliedEvents.every((event) => event.hypothetical));
+  assert.equal(JSON.stringify(base), original);
+  const now = Date.now();
+  assert.deepEqual(
+    rehearse(base, base.context, { events }, now),
+    rehearse(base, base.context, { events: [...events].reverse() }, now),
+  );
+});
+test("multiple required capability failures block every choice without fabricated substitutes", () => {
+  const base = routine();
+  const result = rehearse(base, base.context, {
+    events: [
+      { type: "CAPABILITY_UNAVAILABLE", capability: "manual_task" },
+      { type: "CAPABILITY_UNAVAILABLE", capability: "depart" },
+    ],
+  });
+  assert.ok(result.options.every((option) => !option.feasible));
+  assert.equal(result.metrics.scenarioArrival,null);
+  assert.equal(result.metrics.arrivalMarginMinutes,null);
+  assert.ok(
+    result.unchanged.violations.filter(
+      (issue) => issue.code === "CAPABILITY_UNAVAILABLE",
+    ).length >= 2,
+  );
+});
+test("unsupported, conflicting, excessive and non-hypothetical typed events fail safely", () => {
+  const base = routine();
+  for (const scenario of [
+    { events: [{ type: "POLICY_OVERRIDE" }] },
+    { events: [{ type: "RAIN", raining: true, hypothetical: false }] },
+    { events: [{ type: "RAIN", raining: true, window: { start: "07:00" } }] },
+    { events: Array(7).fill({ type: "RAIN", raining: true }) },
+  ])
+    assert.equal(stressSchema.safeParse(scenario).success, false);
+  assert.throws(
+    () =>
+      rehearse(base, base.context, {
+        events: [
+          { type: "TRAVEL_DELAY", minutes: 5 },
+          { type: "TRAVEL_DELAY", minutes: 10 },
+        ],
+      }),
+    { code: "DUPLICATE_SCENARIO_EVENT" },
+  );
+  for (const stepId of ["missing", "depart"])
+    assert.throws(
+      () =>
+        rehearse(base, base.context, {
+          events: [{ type: "TASK_ALLOWANCE", stepId, minutes: 5 }],
+        }),
+      { code: "UNSUPPORTED_TASK_ALLOWANCE" },
+    );
+  assert.throws(
+    () =>
+      rehearse(base, base.context, {
+        events: [
+          { type: "CAPABILITY_UNAVAILABLE", capability: "invented-device" },
+        ],
+      }),
+    { code: "UNKNOWN_RUNTIME_CAPABILITY" },
+  );
+});
+test("combined allowance adoption remains inert and binds the source version", async () => {
+  const s = await setup();
+  const scenario = {
+    events: [
+      { type: "TRAVEL_DELAY", minutes: 5 },
+      { type: "TASK_ALLOWANCE", stepId: "prepare-2", minutes: 10 },
+    ],
+  };
+  const result = await s.rehearsal.adopt("owner", {
+    proposalId: s.proposal.id,
+    expectedVersion: 1,
+    scenario,
+    choice: "EARLIER_PREPARATION",
+    confirmed: true,
+  });
+  assert.equal(result.proposal.routine.steps[1].durationMinutes, 20);
+  assert.equal(result.proposal.routine.lineage.scenario.events.length, 2);
+  assert.equal(s.repository.activations.length, 0);
+  assert.equal(
+    (await s.repository.getProposal("owner", s.proposal.id)).routine.steps[1]
+      .durationMinutes,
+    10,
+  );
+});
 function routine(changes = {}) {
   const date = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
   const input = journeyInputSchema.parse({
@@ -31,6 +156,7 @@ function routine(changes = {}) {
     provider: "Open-Meteo",
     raining: false,
     timezone: "UTC",
+    validFor: `${date}T09:00`,
     retrievedAt: new Date().toISOString(),
   };
   return buildJourney(input, builtInHousehold("personal-day"), route, weather);

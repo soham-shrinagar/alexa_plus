@@ -364,8 +364,37 @@
                 ><input id="stress-rain" type="checkbox" /> Assume rain</label
               ><label for="stress-capability">Unavailable capability</label
               ><select id="stress-capability">
-                <option value="">None</option></select
-              ><label class="checkbox"
+                <option value="">None</option>
+              </select>
+              <details class="scenario-details">
+                <summary>More simultaneous conditions</summary>
+                <label for="stress-task"
+                  >Extra time for a preparation task</label
+                >
+                <select id="stress-task">
+                  <option value="">No task allowance</option>
+                </select>
+                <label for="stress-task-minutes"
+                  >Additional minutes · hypothetical</label
+                >
+                <input
+                  id="stress-task-minutes"
+                  type="number"
+                  min="1"
+                  max="60"
+                  step="1"
+                  value="10"
+                />
+                <fieldset>
+                  <legend>Additional capability failures</legend>
+                  <div id="failure-capabilities"></div>
+                </fieldset>
+                <p class="help">
+                  Combined conditions use the stored evidence. Allowances never
+                  shorten tasks. Partial time-window events are not supported.
+                </p>
+              </details>
+              <label class="checkbox"
                 ><input id="stress-runtime" type="checkbox" /> Use current
                 runtime conditions</label
               ><button id="compare" class="button primary full" data-work>

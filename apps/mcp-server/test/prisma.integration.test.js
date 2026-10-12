@@ -189,6 +189,7 @@ test(
           provider: "Open-Meteo",
           timezone: "UTC",
           raining: false,
+          validFor: `${date}T09:00`,
           retrievedAt: new Date().toISOString(),
         },
       );
