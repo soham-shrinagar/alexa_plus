@@ -101,7 +101,8 @@ async def execute(case):
                             response.raise_for_status()
                             await response.read()
                     await asyncio.sleep(max(0.1, case["until"] / 1000 - (loop.time() - start)))
-                    await hass.async_block_till_done()
+                    # Snapshot at the declared horizon. Waiting for ALL HA tasks here
+                    # also waits for delayed automations and changes the experiment.
                     async with client.get(base + "/api/states") as response:
                         response.raise_for_status()
                         states = {s["entity_id"]: s["state"] for s in await response.json() if s["entity_id"] in case["entities"]}
