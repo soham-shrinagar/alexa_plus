@@ -1,0 +1,23 @@
+- id: motion_light
+  alias: Motion light with delayed switch off
+  mode: restart
+  triggers:
+    - trigger: state
+      entity_id: input_boolean.motion
+      to: "on"
+  actions:
+    - action: input_boolean.turn_on
+      target: {entity_id: input_boolean.lamp}
+    - delay: {milliseconds: 600}
+    - action: input_boolean.turn_off
+      target: {entity_id: input_boolean.lamp}
+- id: manual_hold
+  alias: Explicit manual hold turns the lamp on
+  mode: single
+  triggers:
+    - trigger: state
+      entity_id: input_boolean.hold
+      to: "on"
+  actions:
+    - action: input_boolean.turn_on
+      target: {entity_id: input_boolean.lamp}

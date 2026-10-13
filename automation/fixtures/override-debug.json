@@ -1,0 +1,15 @@
+{
+  "entities": {
+    "input_boolean.motion": {"state":"off"},
+    "input_boolean.lamp": {"state":"off"},
+    "input_boolean.hold": {"state":"off"}
+  },
+  "expectations": [
+    {"id":"respect_hold","description":"Keep the lamp on while manual hold is enabled","confirmed":true,"kind":"invariant","when":[{"entityId":"input_boolean.hold","state":"on"}],"entityId":"input_boolean.lamp","state":"on"}
+  ],
+  "suite": [
+    {"scenario":{"id":"manual_override","events":[{"kind":"state","at":0,"entityId":"input_boolean.motion","state":"on"},{"kind":"state","at":250,"entityId":"input_boolean.hold","state":"on"}],"until":1200},"expected":{"input_boolean.lamp":"on"}},
+    {"scenario":{"id":"normal_completion","events":[{"kind":"state","at":0,"entityId":"input_boolean.motion","state":"on"}],"until":1200},"expected":{"input_boolean.lamp":"off"}},
+    {"scenario":{"id":"hold_after_completion","events":[{"kind":"state","at":0,"entityId":"input_boolean.motion","state":"on"},{"kind":"state","at":800,"entityId":"input_boolean.hold","state":"on"}],"until":1200},"expected":{"input_boolean.lamp":"on"}}
+  ]
+}

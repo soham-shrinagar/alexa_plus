@@ -28,6 +28,10 @@ Expectations are user-confirmed invariant or final requirements, optionally guar
 
 ## Integration boundary
 
+## Execution and repair (phases 2–3)
+
+Use `automationCli.js run`, `search`, or `repair` with a YAML file and snapshot JSON. `automation/fixtures/override-debug.*` provides two interacting rules, confirmed manual-hold intent, and three independent normal/failure regression assertions. Reports for phases 1–3 include real HA captures and reproducible comparison commands. A passing run covers a finite declared model; pending work, missing evidence and exhausted budgets remain inconclusive. Repairs currently insert a single literal guard and export normalized YAML for review.
+
 The read-only server-side HA adapter reads selected states over authenticated REST. Rules are explicitly imported YAML, not inferred from `/api/states`. Tokens never appear in results. Remote connections require HTTPS. Its read-only limit is application enforcement, not a claim of restricted token privileges.
 
 The independent testbed uses actual Home Assistant Core **2024.12.5**, pinned for available Python 3.12 and run with virtual helpers. This historical runtime is a conformance reference only, not a production recommendation or evidence of compatibility with every later HA version. No production instance/device is connected. Test setup and evidence are described in the phase reports.
