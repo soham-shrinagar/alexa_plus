@@ -74,6 +74,54 @@ export function renderPlan() {
   if (!p) return;
   const r = state.activation?.runtimeState.routine ?? p.routine;
   const j = p.routine.journey;
+  const compact = $("#compact-plan");
+  compact.replaceChildren(element("p", p.goal, "goal-copy"));
+  const checked = state.simulation?.summary?.checkedConstraints;
+  compact.append(
+    element(
+      "h2",
+      state.activation?.status === "SUSPENDED"
+        ? "Paused: this change has conflicts"
+        : state.simulation?.status === "PASSED"
+          ? `Checked against ${checked ?? r.constraints.length} declared rules`
+          : "Possible conflicts · review before approval",
+    ),
+  );
+  if (j) {
+    const departure = r.steps.find((step) => step.departure);
+    const unavailable = (r.context.unavailableCapabilities ?? []).some((cap) =>
+      r.steps.some((step) => !step.optional && step.capability === cap),
+    );
+    const minute =
+      departure.startMinute +
+      j.routeMinutes +
+      j.extraDelayMinutes +
+      j.rainBufferMinutes +
+      (r.context.travelDelayMinutes ?? 0);
+    const estimate = unavailable
+      ? "Not evaluable"
+      : `${String(Math.floor(minute / 60)).padStart(2, "0")}:${String(minute % 60).padStart(2, "0")}`;
+    const [arrivalHour, arrivalMinute] = j.arrivalTime.split(":").map(Number);
+    const margin = unavailable
+      ? "not evaluable"
+      : `${arrivalHour * 60 + arrivalMinute - minute} min`;
+    const clocks=element("div",null,"compact-times");
+    for(const [label,value] of [["Prepare",r.steps.find(step=>step.requiredForDeparture)?.startTime??j.readyTime],["Leave",departure.startTime],["Estimated arrival",estimate],["Arrival deadline",j.arrivalTime],["Reserved buffer",`${j.safetyBufferMinutes} min`],["Estimated margin",margin]])clocks.append(timeCell(label,value,label==="Leave"));
+    compact.append(clocks);
+  } else
+    compact.append(
+      element(
+        "p",
+        `${r.steps.length} declared tasks · no journey arrival estimate`,
+      ),
+    );
+  compact.append(
+    element(
+      "p",
+      `Version ${p.version}. ${state.activation ? "Virtual execution only." : "Not started; approval is separate."} ${state.evidenceAssessment?.approvalEvidenceSatisfied === false ? "Current evidence required before approval." : "Travel estimates are not guarantees; source facts are in details."}`,
+      "help",
+    ),
+  );
   const board = $("#plan-board");
   board.replaceChildren();
   $("#plan-status").replaceWith(
@@ -94,6 +142,8 @@ export function renderPlan() {
   if (r.lineage)
     header.append(element("p", r.lineage.changeSummary, "lineage"));
   board.append(header);
+  if (state.evidenceAssessment)
+    board.append(evidencePanel(state.evidenceAssessment));
   if (j) {
     const strip = element("div", null, "time-strip");
     strip.append(
@@ -237,6 +287,7 @@ function renderEvidence(r) {
 export function renderComparison(onChoose) {
   const result = state.comparison;
   if (!result) return;
+  renderConversationChoices(result, onChoose);
   const target = $("#comparison-board");
   target.replaceChildren();
   const header = element("section", null, "comparison-summary");
@@ -289,11 +340,16 @@ export function renderComparison(onChoose) {
   if (result.metrics) {
     const metrics = element("div", null, "metric-row");
     for (const [value, label] of [
-      [result.metrics.scenarioArrival ?? "Not evaluable", "Scenario arrival estimate"],
       [
-        result.metrics.arrivalMarginMinutes == null ? "Required capability missing" : result.metrics.arrivalMarginMinutes < 0
-          ? `${Math.abs(result.metrics.arrivalMarginMinutes)} min late`
-          : `${result.metrics.arrivalMarginMinutes} min`,
+        result.metrics.scenarioArrival ?? "Not evaluable",
+        "Scenario arrival estimate",
+      ],
+      [
+        result.metrics.arrivalMarginMinutes == null
+          ? "Required capability missing"
+          : result.metrics.arrivalMarginMinutes < 0
+            ? `${Math.abs(result.metrics.arrivalMarginMinutes)} min late`
+            : `${result.metrics.arrivalMarginMinutes} min`,
         "Margin to arrival deadline",
       ],
       [
@@ -308,6 +364,8 @@ export function renderComparison(onChoose) {
     header.append(metrics);
   }
   target.append(header);
+  if (result.evidenceAssessment)
+    target.append(evidencePanel(result.evidenceAssessment));
   if (result.unchanged.violations.length) {
     const conflicts = element("section", null, "panel conflict-panel");
     conflicts.append(element("h3", "Why this scenario fails"));
@@ -350,6 +408,8 @@ export function renderComparison(onChoose) {
     for (const issue of option.blockers.slice(0, 3))
       diffs.append(element("li", issue.message));
     card.append(diffs);
+    if (option.evidenceAssessment)
+      card.append(evidencePanel(option.evidenceAssessment));
     if (option.resolution)
       card.append(
         element(
@@ -384,6 +444,68 @@ export function renderComparison(onChoose) {
     ),
   );
   target.append(notes);
+}
+function renderConversationChoices(result, onChoose) {
+  const target = $("#conversation-alternatives");
+  target.replaceChildren();
+  target.append(
+    element(
+      "p",
+      `Original: ${result.baseline.status}. Under these hypothetical conditions: ${result.unchanged.status}. ${result.metrics ? `Estimated arrival ${result.metrics.scenarioArrival ?? "not evaluable"}; arrival margin ${result.metrics.arrivalMarginMinutes ?? "unknown"} minutes.` : ""}`,
+      "help",
+    ),
+  );
+  for (const [index, option] of result.options.entries()) {
+    const card = element("section", null, "panel compact");
+    card.append(
+      element("h3", `${index + 1}. ${option.title}`),
+      element("p", option.tradeoff),
+    );
+    if (option.metrics)
+      card.append(
+        element(
+          "p",
+          `Estimated arrival ${option.metrics.scenarioArrival ?? "not evaluable"} · ${option.metrics.arrivalMarginMinutes ?? "unknown"} min margin`,
+        ),
+      );
+    for (const blocker of option.blockers.slice(0, 2))
+      card.append(element("p", blocker.message, "help"));
+    const button = element(
+      "button",
+      option.feasible ? "Review this choice" : "Blocked by requirements",
+      "button secondary",
+    );
+    button.dataset.work = "";
+    button.dataset.blocked = String(!option.feasible);
+    button.disabled = !option.feasible || state.busy;
+    button.addEventListener("click", () => onChoose(option));
+    card.append(button);
+    target.append(card);
+  }
+}
+function evidencePanel(assessment) {
+  const panel = element("section", null, "evidence-item");
+  panel.append(
+    element("b", `Evidence · ${assessment.sourceMode}`),
+    element(
+      "p",
+      `Verification: ${assessment.verificationStatus ?? "not run"} · Freshness: ${assessment.freshnessStatus} · Completeness: ${assessment.completenessStatus}`,
+    ),
+    element(
+      "small",
+      `Assessed at ${new Date(assessment.assessedAt).toLocaleString()}. Approval checks again; estimates are not guarantees.`,
+    ),
+  );
+  for (const item of assessment.items)
+    panel.append(
+      element(
+        "p",
+        `${item.source}: ${item.freshnessStatus} · ${item.ageMs === null ? "age unknown" : `${Math.max(0, Math.floor(item.ageMs / 60000))} min old`} · retrieved ${item.retrievedAt ?? "unknown"}`,
+      ),
+    );
+  for (const warning of assessment.warnings)
+    panel.append(element("p", warning.message, "help"));
+  return panel;
 }
 function renderConflicts(verification, parent) {
   const facts = verification.summary?.explanation?.conflicts ?? [];

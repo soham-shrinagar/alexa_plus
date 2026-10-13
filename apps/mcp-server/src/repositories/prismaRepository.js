@@ -1,10 +1,12 @@
 import { Prisma } from "@prisma/client";
 import { AppError, forbidden } from "../errors.js";
+import { instrumentRepository } from "../timing.js";
 
 export class PrismaRepository {
   constructor(prisma) {
     this.prisma = prisma;
     this.resolvedUsers = new Map();
+    instrumentRepository(this);
   }
 
   async withUserLock(externalUserId, operation) {

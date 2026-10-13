@@ -1,7 +1,13 @@
 import { toClock } from "./time.js";
 import { explainVerification } from "./explanations.js";
 
+import { timeSync } from "../timing.js";
 export function simulateRoutine(routine, context = routine.context) {
+  return timeSync("planning.verification", () =>
+    verifyRoutine(routine, context),
+  );
+}
+function verifyRoutine(routine, context) {
   const trace = routine.steps
     .slice()
     .sort((a, b) => a.startMinute - b.startMinute)

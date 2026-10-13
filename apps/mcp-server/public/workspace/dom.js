@@ -32,10 +32,15 @@ export function setNotice(text, error = false) {
   $("#status").textContent = text;
   $("#status").classList.toggle("error", error);
 }
+let responseListener = () => {};
+export function onAssistantResponse(listener) {
+  responseListener = listener;
+}
 export function appendMessage(role, text) {
   $("#conversation").append(element("div", text, `message ${role}`));
   while ($("#conversation").children.length > 16)
     $("#conversation").firstElementChild.remove();
+  if (role === "assistant") responseListener(text);
 }
 export function addTrace(method, detail) {
   const row = element(

@@ -82,6 +82,8 @@ npm run check:alexa
 
 Offline tests cover model validation, routing arithmetic, DST/calendar safety, ownership, approval races, rollback, real HTTP MCP contracts and provider failure. The Neon test is opt-in:
 
+Current verification: 93 offline tests pass, zero fail, one optional Neon test skips by default; the separately enabled Neon integration passed. Syntax checks cover 71 JavaScript files. Microphone capture/voice quality still needs a manual permitted-browser test. Traffic monitoring is explicitly deferred; no scheduled checks or notification delivery are active.
+
 ```powershell
 $env:RUN_NEON_INTEGRATION="true"
 npm run test:neon
@@ -95,7 +97,7 @@ Use an isolated Neon branch for this test. It creates synthetic records and clea
 
 ## Architecture and MCP
 
-Express + official MCP SDK + Zod, modular browser JavaScript and shared dayboard CSS, Prisma/PostgreSQL. There are 26 authenticated tools:
+Express + official MCP SDK + Zod, modular browser JavaScript and shared dayboard CSS, Prisma/PostgreSQL. There are 27 authenticated tools:
 
 | Area                  | Tools                                                                                                                             |
 | --------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
@@ -103,7 +105,7 @@ Express + official MCP SDK + Zod, modular browser JavaScript and shared dayboard
 | Context               | household.list_profiles, household.configure, home.list_capabilities, household.get_constraints                                   |
 | Household planning    | assistant.respond (legacy conversational lifecycle), routine.compile, routine.repair, routine.revise, routine.refresh_environment |
 | Verification/delivery | simulation.run, simulation.what_if, reminder.export                                                                               |
-| Rehearsal/history     | rehearsal.compare, rehearsal.adopt, routine.list                                                                                  |
+| Rehearsal/history     | rehearsal.compare, rehearsal.compare_set, rehearsal.adopt, routine.list                                                           |
 | Lifecycle             | routine.request_activation, routine.activate, routine.get_status, routine.inject_event, routine.rollback, audit.get_trace         |
 
 planner.respond gives Gemini validated, bounded tool selection and extraction. The server executes the selected workflow through the same service/provider implementations exposed as tools. This is constrained orchestration, not an unrestricted autonomous agent loop. Calls inside journey.plan are service calls, not separate network MCP round-trips; the UI distinguishes these execution steps from browser MCP activity.
@@ -114,6 +116,16 @@ Source map (under apps/mcp-server): src/domain contains pure schedule/constraint
 Rehearsal adoption recomputes an option server-side and binds source version/runtime state. Recovery activation restores the previous virtual snapshot and creates its replacement in one transaction; failed persistence restores the old runtime and unconsumed approval. The verifier checks declared implemented rules, not universal safety. Repeated runtime delay reports are totals relative to the approved plan, not additive events. No wall-clock execution or polling runs in the background.
 
 ## Alexa+ status and submission
+
+### Advanced rehearsal
+
+The Plan view is conversation-first: editable text/voice transcripts, opt-in browser speech synthesis, compact plan and contextual alternatives. Say “what if traffic is 15 minutes worse?”, “what if it rains?”, “choose the second option”, “show me the details” or “cancel”. Ambiguous/unknown edits ask for clarification; new outcomes use “new plan: …”. Selecting a choice never activates it. Recognition varies by browser and may use the browser vendor's speech service; permission is requested only on a microphone click. Text works without voice support. Full technical facts remain in Plan details.
+
+Combine up to six typed hypothetical events: travel delay, rain, capability failures and extra time for specific manual/preparation tasks. Conflicts include deterministic expected/observed facts. Every alternative is independently checked and remains inert until separate approval. Evidence summaries distinguish verification, freshness, minimum-input completeness and uncalibrated uncertainty; stale/incomplete live evidence cannot authorize activation or calendar export.
+
+`rehearsal.compare_set` checks up to eight scenarios and three fixed candidates. Optional candidates come from an explicitly supplied seed scenario. Its shocks are **additional beyond each candidate's retained allowances**; safety buffers are not silently consumed. Counts are not success probabilities. A one-second evaluation budget is checked between synchronous runs, not a preemptive real-time guarantee.
+
+Owner-scoped `/metrics` separates Gemini, provider, journey/verification and database spans. Browser tool traces report round-trip latency. Spans are inclusive and overlap; do not add them. Percentiles require 20 samples. Run `node scripts/benchmark.js` for 30 offline in-memory MCP comparisons, not an Alexa/live-provider benchmark. Optional consent-based preference persistence is deferred.
 
 The [competition FAQ](https://amazonappdev2026.devpost.com/details/faqs) accepts a browser that actually uses MCP Streamable HTTP as a simulated Alexa+ experience; local reproducibility plus a video is sufficient. Amazon's [developer home](https://developer.amazon.com/docs/alexaplus/add-ons/home.html) limits MCP Toolkit access to selected partners. Do not describe this repository as already connected to Alexa.
 

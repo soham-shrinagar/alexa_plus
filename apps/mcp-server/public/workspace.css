@@ -882,6 +882,70 @@ main {
   border-bottom: 1px solid var(--line);
   margin: 15px 0;
 }
+#view-plan .plan-layout {
+  grid-template-columns: 1fr;
+  max-width: 960px;
+  margin-inline: auto;
+}
+.conversation {
+  max-height: 380px;
+  overflow-y: auto;
+  margin: 20px 0;
+}
+.message {
+  max-width: 85%;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.message.user {
+  margin-left: auto;
+}
+.voice-controls {
+  align-items: center;
+}
+.voice-controls label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.voice-controls input {
+  width: auto;
+}
+.compact-plan h2 {
+  font-size: 1.5rem;
+}
+.compact-times { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:18px; margin-block:20px; }
+.compact-times span { display:block; font-size:11px; color:var(--muted); }
+.compact-times b { font-size:24px; }
+#conversation-alternatives > p { grid-column:1 / -1; }
+@media (max-width:600px) { .compact-times { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+#under-the-hood > summary {
+  cursor: pointer;
+  padding-block: 12px;
+  font-weight: 600;
+}
+#scenario-set-choices label {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+#scenario-set-choices input {
+  width: auto;
+}
+#scenario-set-board small {
+  display: block;
+}
+@media (max-width: 600px) {
+  .voice-controls {
+    gap: 8px;
+  }
+  .message {
+    max-width: 100%;
+  }
+  .voice-controls .button {
+    min-height: 44px;
+  }
+}
 .alternative-times b {
   font: 23px var(--serif);
   display: block;

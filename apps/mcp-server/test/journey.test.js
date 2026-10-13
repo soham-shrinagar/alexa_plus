@@ -214,6 +214,18 @@ const journeyIntent = {
   tasks: [],
   selectedTools: ["journey.plan"],
 };
+test("arrival intent never silently drops a selected household policy context", async () => {
+  const s = setup(journeyIntent);
+  const result = await s.requests.respond("owner", {
+    message: "Arrive by ten",
+    scenarioId: "work-morning",
+    context: s.context,
+  });
+  assert.equal(result.needsClarification, true);
+  assert.match(result.reply, /policy context/);
+  assert.equal(s.repository.proposals.length, 0);
+  assert.equal(s.calls.length, 0);
+});
 
 test("explicit language overrides visible buffer defaults without double counting traffic", async () => {
   const s = setup({
@@ -247,7 +259,11 @@ test("a weather-dependent household request grounds only the requested forecast"
     selectedTools: ["routine.compile", "weather.get_forecast"],
   });
   const intent = await s.service.planner.provider.generate({});
-  s.service.toolCatalog = [{ name: "routine.compile" }, { name: "weather.get_forecast" }, { name: "simulation.run" }];
+  s.service.toolCatalog = [
+    { name: "routine.compile" },
+    { name: "weather.get_forecast" },
+    { name: "simulation.run" },
+  ];
   s.service.planner.provider.generate = async ({ input }) => {
     if (input.selectedContext) return intent;
     assert.equal(input.environmentEvidence.dataMode, "live");

@@ -79,10 +79,11 @@ export class McpBrowserClient {
   }
 
   async callTool(name, args = {}) {
+    const started = performance.now();
     const result = await this.request("tools/call", { name, arguments: args });
     const value =
       result.structuredContent ?? JSON.parse(result.content?.[0]?.text ?? "{}");
-    this.onActivity("tools/call", name);
+    this.onActivity("tools/call", `${name} · ${Math.round(performance.now()-started)} ms browser round trip`);
     if (result.isError)
       throw Object.assign(new Error(value.error?.message ?? `${name} failed`), {
         code: value.error?.code,

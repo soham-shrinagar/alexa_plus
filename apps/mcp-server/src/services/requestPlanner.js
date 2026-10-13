@@ -11,7 +11,10 @@ import { buildMicroTwin } from "../domain/microTwinBuilder.js";
 import { simulateRoutine } from "../domain/constraintEngine.js";
 import { repairRoutine } from "../domain/repairEngine.js";
 import { adaptRoutine } from "../domain/runtimeEngine.js";
-import { assertApprovalEvidence, assessEvidence } from "../domain/evidenceAssessment.js";
+import {
+  assertApprovalEvidence,
+  assessEvidence,
+} from "../domain/evidenceAssessment.js";
 
 const clock = z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/);
 export const requestInputSchema = z
@@ -207,6 +210,17 @@ export class RequestPlanner {
         };
     }
     if (intent.kind === "journey") {
+      if (input.scenarioId !== "personal-day")
+        return {
+          intent,
+          trace,
+          needsClarification: true,
+          questions: [
+            "This journey compiler supports a personal journey only. Select My day for independent manual preparation, or plan a separate household routine to preserve the selected household's people, appliances and policies.",
+          ],
+          reply:
+            "I won't silently replace your household policy context with the personal journey profile.",
+        };
       const result = await this.journey(userId, {
         ...context,
         goal: intent.goal,
@@ -409,7 +423,12 @@ export class RequestPlanner {
         simulation,
         trace,
         evidence: routine.context.evidence,
-        evidenceAssessment: assessEvidence(routine,routine.context,Date.now(),result.status),
+        evidenceAssessment: assessEvidence(
+          routine,
+          routine.context,
+          Date.now(),
+          result.status,
+        ),
       };
     });
   }
@@ -468,7 +487,7 @@ export class RequestPlanner {
         "The plan must pass verification before export.",
         { status: 409 },
       );
-    assertApprovalEvidence(proposal.routine,proposal.context);
+    assertApprovalEvidence(proposal.routine, proposal.context);
     return calendarReminder(proposal);
   }
 }

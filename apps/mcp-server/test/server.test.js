@@ -132,6 +132,37 @@ test("request planner performs arrival routing, verification and calendar export
       },
     });
     assert.equal(combined.appliedEvents.length, 3);
+    const set = await invoke("rehearsal.compare_set", {
+      proposalId: result.proposal.id,
+      scenarios: [
+        { id: "expected", label: "Expected", scenario: { events: [] } },
+        {
+          id: "delay",
+          label: "Delay",
+          scenario: { events: [{ type: "TRAVEL_DELAY", minutes: 15 }] },
+        },
+      ],
+      candidateScenario: combined.scenario,
+    });
+    assert.equal(set.candidates.length, 3);
+    assert.ok(api.telemetry.snapshot("demo-user").mcpProcessing.samples > 0);
+    assert.equal(set.candidates[0].passingScenarios, 1);
+    assert.equal(
+      set.candidates[0].rows[0].evidenceAssessment.approvalEvidenceSatisfied,
+      true,
+    );
+    const inaccessible = await connection.call(
+      rpc("tools/call", {
+        name: "rehearsal.compare_set",
+        arguments: {
+          proposalId: "unowned-proposal",
+          scenarios: [
+            { id: "expected", label: "Expected", scenario: { events: [] } },
+          ],
+        },
+      }),
+    );
+    assert.equal(inaccessible.result.isError, true);
     assert.equal(combined.options[0].routine.journey.readyTime, "08:15");
     assert.equal(calls.filter((call) => call === "route").length, 1);
     assert.equal(
@@ -183,7 +214,7 @@ test("conversational Gemini path uses the registered complete tool catalog over 
   const planner = new PlannerService({
     model: "mock-gemini",
     async generate({ input }) {
-      assert.equal(input.availableMcpTools.length, 26);
+      assert.equal(input.availableMcpTools.length, 27);
       assert.ok(
         input.availableMcpTools.find(
           (tool) => tool.name === "household.configure",
