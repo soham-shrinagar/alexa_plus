@@ -24,6 +24,10 @@ import { Telemetry, log } from "./observability.js";
 import { GeminiProvider } from "./providers/gemini.js";
 import { EnvironmentProvider } from "./providers/environment.js";
 import { PlannerService } from "./services/plannerService.js";
+import { AutomationService } from "./automation/service.js";
+import { MemoryAutomationStore, PrismaAutomationStore } from "./automation/store.js";
+import { registerAutomationTools } from "./automation/tools.js";
+import { installAutomationRoutes } from "./automation/routes.js";
 
 const publicDirectory = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -65,6 +69,10 @@ export async function createApplication(overrides = {}) {
   app.use(express.urlencoded({ extended: false, limit: "16kb" }));
   app.use(express.json({ limit: "256kb" }));
   const authenticate = createAuthMiddleware({ tokenService, config });
+  const automationStore = overrides.automationStore ?? (config.repositoryMode === "prisma" ? new PrismaAutomationStore(getPrismaClient()) : new MemoryAutomationStore());
+  const automationProvider = overrides.automationProvider ?? (config.geminiApiKey ? new GeminiProvider({ apiKey: config.geminiApiKey, model: config.geminiModel, timeoutMs: config.llmTimeoutMs }) : undefined);
+  const automationService = new AutomationService({ store: automationStore, provider: automationProvider });
+  installAutomationRoutes(app, { service: automationService, tokenService, authenticate, registrationEnabled: config.automationRegistrationEnabled });
 
   app.get("/.well-known/oauth-authorization-server", (_req, res) =>
     res.json(authorizationServerMetadata(config)),
@@ -139,6 +147,9 @@ export async function createApplication(overrides = {}) {
       geminiModel: config.geminiModel,
       weatherProvider: "Open-Meteo",
       trafficConfigured: Boolean(config.trafficApiKey),
+      automationStorage: automationStore.mode,
+      automationConversationConfigured: Boolean(automationProvider),
+      automationRegistrationEnabled: config.automationRegistrationEnabled,
     }),
   );
   app.get("/metrics", authenticate, (req, res) =>
@@ -166,6 +177,7 @@ export async function createApplication(overrides = {}) {
       { capabilities: { tools: {} } },
     );
     registerTools(server, { service, telemetry });
+    registerAutomationTools(server, automationService);
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: () => crypto.randomUUID(),
       enableJsonResponse: true,
@@ -243,6 +255,7 @@ export async function createApplication(overrides = {}) {
     tokenService,
     telemetry,
     repository,
+    automationService,
     async close() {
       clearInterval(sessionCleanup);
       await Promise.all(

@@ -15,6 +15,7 @@ export function loadConfig(env = process.env) {
   if (!demoMode && (!jwtSecret || jwtSecret.length < 32)) throw new Error("JWT_SECRET must contain at least 32 characters outside demo mode.");
   return {
     port, host: env.HOST || "0.0.0.0", publicUrl, demoMode, repositoryMode, authRequired, jwtSecret,
+    automationRegistrationEnabled: env.AUTOMATION_REGISTRATION_ENABLED === "true" || (demoMode && env.AUTOMATION_REGISTRATION_ENABLED !== "false"),
     allowedOrigins: new Set((env.ALLOWED_ORIGINS || "").split(",").map((value) => value.trim()).filter(Boolean)),
     oauthClients: parseClients(env.OAUTH_CLIENTS_JSON),
     geminiApiKey: env.GEMINI_API_KEY || undefined,
