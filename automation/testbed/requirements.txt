@@ -1,0 +1,3 @@
+# Historical conformance target, isolated test use only (not production hosting).
+# Python 3.12; resolver cutoff 2025-02-01 avoids drifting historical transitive APIs.
+homeassistant==2024.12.5

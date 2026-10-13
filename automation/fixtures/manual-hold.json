@@ -1,0 +1,14 @@
+{
+  "entities": {
+    "input_boolean.motion": {"state":"off"},
+    "input_boolean.lamp": {"state":"off"},
+    "input_boolean.hold": {"state":"off"}
+  },
+  "expectations": [
+    {"id":"respect_hold","description":"The lamp stays on while the explicitly enabled hold mode is on","confirmed":true,"kind":"invariant","when":[{"entityId":"input_boolean.hold","state":"on"}],"entityId":"input_boolean.lamp","state":"on"}
+  ],
+  "scenarios": [
+    {"id":"hold_during_delay","events":[{"kind":"state","at":0,"entityId":"input_boolean.motion","state":"on"},{"kind":"state","at":250,"entityId":"input_boolean.hold","state":"on"}],"until":900},
+    {"id":"ordinary_motion","events":[{"kind":"state","at":0,"entityId":"input_boolean.motion","state":"on"}],"until":900}
+  ]
+}

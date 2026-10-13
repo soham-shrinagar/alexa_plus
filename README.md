@@ -1,5 +1,7 @@
 # Rehearse
 
+On `new/automation`, the separate [automation preflight project](automation/README.md) implements the phased smart-home direction. The original planner below is preserved. Phase reports and reproducible examples are tracked under `automation/`; private `docs/` notes remain ignored.
+
 ## Plan with evidence. Rehearse the unexpected. Keep the final say.
 
 Rehearse turns natural-language outcomes into inspectable, verified plans. Gemini extracts tasks and selects tools; deterministic code grounds travel in TomTom routing and Open-Meteo forecasts, checks constraints, and requires human approval before a **simulated** runtime starts.

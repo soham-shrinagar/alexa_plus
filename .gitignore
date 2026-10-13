@@ -44,6 +44,8 @@ playwright-report/
 *.bak
 *.swp
 *.swo
+__pycache__/
+*.pyc
 
 # Local databases and Prisma generated files
 *.db
