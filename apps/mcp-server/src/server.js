@@ -227,6 +227,8 @@ export async function createApplication(overrides = {}) {
     }
   });
 
+  app.get(["/", "/automations"], (_req, res) => res.sendFile(path.join(publicDirectory, "automation.html")));
+  app.get("/dayboard", (_req, res) => res.sendFile(path.join(publicDirectory, "index.html")));
   app.use(
     express.static(publicDirectory, {
       extensions: ["html"],

@@ -366,7 +366,7 @@ test("MCP session belongs to its authenticated user and client", async () => {
 test("unified dayboard, health, legacy entry and demo session are served", async () => {
   const api = await fixture();
   try {
-    const page = await fetch(api.baseUrl);
+    const page = await fetch(`${api.baseUrl}/dayboard`);
     assert.equal(page.status, 200);
     const html = await page.text();
     assert.match(html, /Plan a day that works/);
@@ -382,7 +382,7 @@ test("unified dayboard, health, legacy entry and demo session are served", async
     const legacy = await fetch(`${api.baseUrl}/lab.html`).then((response) =>
       response.text(),
     );
-    assert.match(legacy, /url=\/\?view=rehearse/);
+    assert.match(legacy, /url=\/dayboard\?view=rehearse/);
     const health = await fetch(`${api.baseUrl}/health`).then((response) =>
       response.json(),
     );

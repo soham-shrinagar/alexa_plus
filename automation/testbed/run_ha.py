@@ -8,6 +8,7 @@ import asyncio
 from datetime import datetime, timezone
 import json
 import logging
+import hashlib
 from pathlib import Path
 import socket
 import tempfile
@@ -122,15 +123,29 @@ async def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("cases")
     parser.add_argument("--output", required=True)
+    parser.add_argument("--verified-yaml", help="Parse the actual approved-candidate export with HA's YAML 1.1 parser for after_ cases")
     args = parser.parse_args()
     if __version__ != "2024.12.5":
         raise RuntimeError("Conformance requires pinned HA 2024.12.5")
     cases = json.loads(Path(args.cases).read_text(encoding="utf8"))
+    export_hash = None
+    if args.verified_yaml:
+        source = Path(args.verified_yaml).read_bytes()
+        exported_rules = yaml.safe_load(source)
+        export_hash = hashlib.sha256(source).hexdigest()
+        for case in cases:
+            if case["id"].startswith("after_"):
+                if exported_rules != case["rules"]:
+                    raise AssertionError("Exported YAML differs from the verified canonical rules after HA YAML parsing")
+                case["rules"] = exported_rules
     results = []
     for case in cases:
         results.append(await execute(case))
         print(f'PASS {case["id"]}', flush=True)
     report = {"runtime": "Home Assistant Core", "version": __version__, "devices": "virtual input_boolean helpers", "recordedAt": datetime.now(timezone.utc).isoformat(), "cases": results}
+    if export_hash:
+        report["exportYamlSha256"] = export_hash
+        report["actualExportParsedWithHomeAssistantYaml"] = True
     Path(args.output).parent.mkdir(parents=True, exist_ok=True)
     Path(args.output).write_text(json.dumps(report, indent=2) + "\n", encoding="utf8")
     print(f"Validated {len(results)} cases; report saved (no credentials).", flush=True)

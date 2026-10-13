@@ -24,3 +24,9 @@ Adjust the repository path to your checkout. Linux users can call the Python exe
 For repeated work, use a persistent user-owned venv instead of `/tmp` (which is cleared on restart). This checkout's validation used `/home/soham/.local/share/rehearse-ha-2024.12.5`. After generating a phase-2 capture, run `node apps/mcp-server/scripts/compareHa.js <capture.json>` to compare independent expectations, input hashes, and observed state-change sequences with the pure interpreter.
 
 The checks assert independently specified expected final states. Events include elapsed wall time for inspection, not exact timing guarantees. This tests actual HA software with virtual entities; it is not evidence of physical-device effects. Do not substitute production-household credentials or targets into this harness.
+
+## Validate the actual exported YAML
+
+`node apps/mcp-server/scripts/repairEvidence.js --prepare` also writes `artifacts/automation/verified-export.yaml`. Run the harness with `repair-cases.json`, `--verified-yaml <absolute path to verified-export.yaml>`, and a separate capture output. The harness parses the actual bytes with HA's YAML 1.1 parser, asserts equality with the verified rule model, and uses those parsed rules for the `after_` cases. The capture includes the raw file SHA-256 and `actualExportParsedWithHomeAssistantYaml: true`.
+
+Compare with `node apps/mcp-server/scripts/repairEvidence.js <capture.json> automation/reports/phase-5-verification.json`. This checks the exported-file hash, independent final outputs, and state-change sequences. The exporter explicitly quotes on/off to prevent YAML 1.1 boolean conversion.

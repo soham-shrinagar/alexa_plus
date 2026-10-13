@@ -1,0 +1,408 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Find why your home automations disagree. Replay a failure, verify a repair, and review the change before exporting it."
+    />
+    <title>Rehearse — automation debugger</title>
+    <link rel="stylesheet" href="/automation/style.css" />
+  </head>
+  <body>
+    <a class="skip" href="#workspace">Skip to workspace</a>
+    <div class="shell">
+      <aside class="rail">
+        <a class="brand" href="/automations"
+          ><span class="mark" aria-hidden="true">r↗</span
+          ><span>rehearse<small>The automation workshop</small></span></a
+        >
+        <div class="rail-heading">
+          YOUR WORKSPACES
+          <button
+            id="new-project"
+            class="icon-button"
+            aria-label="Import a new project"
+          >
+            ＋
+          </button>
+        </div>
+        <div id="projects" class="project-list">
+          <p class="rail-empty">Sign in to restore your projects.</p>
+        </div>
+        <div class="rail-note">
+          <span aria-hidden="true">↗</span>
+          <p>See the chain.<br />Keep the intention.</p>
+          <small
+            >Test the disagreement.<br />Review the smallest useful
+            change.</small
+          >
+        </div>
+        <div class="rail-footer">
+          <a href="/dayboard">Open the original dayboard ↗</a
+          ><span id="connection">Checking connection…</span
+          ><small>Alexa+ experience simulation</small>
+        </div>
+      </aside>
+      <main id="workspace">
+        <header class="topbar">
+          <span
+            >Workshop <span class="slash">/</span>
+            <b id="workspace-name">Getting started</b></span
+          >
+          <div class="account">
+            <span id="account-name">No account</span
+            ><button id="sign-out" class="text-button" hidden>Sign out</button>
+          </div>
+        </header>
+        <div id="notice" class="notice" role="status" aria-live="polite">
+          Opening the workshop…
+        </div>
+        <section class="heading">
+          <div>
+            <p class="eyebrow">BEFORE THE HOME DOES IT</p>
+            <h1>Find the moment<br />things go wrong.</h1>
+            <p id="project-description">
+              A conversation starts the investigation. A replay shows the cause.
+              Your expectations decide what a fix must preserve.
+            </p>
+          </div>
+          <div class="heading-art" aria-hidden="true">
+            <div class="art-line"></div>
+            <span class="art-node">01<br /><small>trigger</small></span
+            ><span class="art-node accent">02<br /><small>delay</small></span
+            ><span class="art-node end">03<br /><small>override?</small></span
+            ><span class="art-caption"
+              >Follow the behavior, one event at a time.</span
+            >
+          </div>
+        </section>
+        <section id="login-panel" class="paper login-panel">
+          <div>
+            <p class="eyebrow">A WORKSPACE THAT REMEMBERS</p>
+            <h2>Pick up where you left off.</h2>
+            <p id="storage-note">
+              Sign in to save rules, experiments and reviewed changes.
+            </p>
+          </div>
+          <form id="login-form">
+            <div class="field-pair">
+              <label
+                >Username<input
+                  id="username"
+                  name="username"
+                  autocomplete="username"
+                  required
+                  pattern="[a-zA-Z0-9_-]{3,60}"
+                  placeholder="your_username" /></label
+              ><label
+                >Password<input
+                  id="password"
+                  name="password"
+                  type="password"
+                  autocomplete="current-password"
+                  minlength="12"
+                  maxlength="128"
+                  required
+                  placeholder="At least 12 characters"
+              /></label>
+            </div>
+            <div class="actions">
+              <button class="button" type="submit" value="login">Sign in</button
+              ><button
+                id="register"
+                class="button secondary"
+                type="submit"
+                value="register"
+              >
+                Create account
+              </button>
+            </div>
+          </form>
+        </section>
+        <section id="import-panel" class="paper" hidden>
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">01 / DECLARE THE EXPERIMENT</p>
+              <h2>Rules, context, and what should happen.</h2>
+            </div>
+            <button id="example" class="button secondary" type="button">
+              Load the guided example
+            </button>
+          </div>
+          <p class="help">
+            Import supported Home Assistant YAML and a JSON snapshot with
+            confirmed expectations and regression tests. You can edit the
+            example or bring your own files.
+            <a href="/automation/guide">Read the contract and setup guide ↗</a>
+          </p>
+          <form id="import-form">
+            <label
+              >Project name<input
+                id="project-name"
+                required
+                maxlength="120"
+                placeholder="e.g. Hallway manual override"
+            /></label>
+            <div class="editor-pair">
+              <label
+                >Automation YAML
+                <input
+                  id="yaml-file"
+                  type="file"
+                  accept=".yaml,.yml,.txt"
+                  aria-label="Choose automation YAML"
+                /><textarea
+                  id="yaml"
+                  rows="15"
+                  required
+                  spellcheck="false"
+                  placeholder="id: motion_light&#10;triggers: …&#10;actions: …"
+                ></textarea></label
+              ><label
+                >Snapshot, expectations and tests (JSON)<input
+                  id="snapshot-file"
+                  type="file"
+                  accept=".json"
+                  aria-label="Choose snapshot JSON"
+                /><textarea
+                  id="snapshot"
+                  rows="15"
+                  required
+                  spellcheck="false"
+                  placeholder='{"entities": {…}, "expectations": […], "suite": […]}'
+                ></textarea>
+              </label>
+            </div>
+            <label class="check"
+              ><input id="confirm-import" type="checkbox" required />I confirm
+              the expectations and regression outputs describe the behavior I
+              want.</label
+            >
+            <div class="actions">
+              <button id="import-submit" class="button" type="submit">
+                Import and save project</button
+              ><button
+                id="cancel-import"
+                type="button"
+                class="button secondary"
+              >
+                Close editor
+              </button>
+            </div>
+            <div id="import-issues" class="issues" hidden></div>
+          </form>
+        </section>
+        <section id="project-panel" hidden>
+          <div class="project-top">
+            <div>
+              <p class="eyebrow" id="version">PROJECT / VERSION 1</p>
+              <h2 id="project-title"></h2>
+            </div>
+            <button id="run" class="button">
+              Run preflight <span aria-hidden="true">↗</span>
+            </button>
+          </div>
+          <nav class="tabs" aria-label="Project views">
+            <button data-tab="overview" class="active" aria-current="page">
+              Investigation</button
+            ><button data-tab="replay">Causal replay</button
+            ><button data-tab="repair">Repair review</button
+            ><button data-tab="source">Rules & context</button
+            ><button data-tab="evidence">Runtime evidence</button>
+          </nav>
+          <section id="tab-overview" class="tab-panel">
+            <div id="metrics" class="metrics"></div>
+            <div class="investigation-grid">
+              <div class="paper conversation">
+                <div class="section-heading">
+                  <div>
+                    <p class="eyebrow">ASK / CHECK / UNDERSTAND</p>
+                    <h2>Investigate it together.</h2>
+                  </div>
+                  <span id="model-state" class="pill">Conversation</span>
+                </div>
+                <div
+                  id="messages"
+                  class="messages"
+                  aria-label="Conversation"
+                ></div>
+                <form id="conversation-form">
+                  <label for="message">Your debugging request</label
+                  ><textarea
+                    id="message"
+                    rows="3"
+                    maxlength="2000"
+                    required
+                    placeholder="Why does the light turn off during manual hold? Check a fix without breaking normal motion behavior."
+                  ></textarea>
+                  <div class="actions">
+                    <button class="button" type="submit">Investigate</button
+                    ><button id="mic" type="button" class="button secondary">
+                      Use voice</button
+                    ><button id="stop-voice" type="button" class="text-button">
+                      Stop voice
+                    </button>
+                  </div>
+                  <p id="voice-status" class="help" role="status">
+                    Voice is optional. Review the transcript before sending.
+                  </p>
+                </form>
+              </div>
+              <div class="paper">
+                <p class="eyebrow">THE EVIDENCE SO FAR</p>
+                <h2>What the checks found.</h2>
+                <div id="findings" class="findings"></div>
+              </div>
+            </div>
+            <div id="conversation-detail" class="paper" hidden></div>
+          </section>
+          <section id="tab-replay" class="tab-panel" hidden>
+            <div class="paper">
+              <div class="section-heading">
+                <div>
+                  <p class="eyebrow">FOLLOW THE CAUSE</p>
+                  <h2>One event changes the next.</h2>
+                </div>
+                <span class="pill">Virtual milliseconds</span>
+              </div>
+              <label
+                >Choose a saved experiment<select id="run-select"></select
+              ></label>
+              <div id="replay-summary" class="help"></div>
+              <div class="replay-controls">
+                <button
+                  id="previous-event"
+                  class="button secondary"
+                  aria-label="Previous event"
+                >
+                  ←</button
+                ><label class="range-label"
+                  >Replay position<input
+                    id="replay-position"
+                    type="range"
+                    min="0"
+                    max="0"
+                    value="0" /></label
+                ><button
+                  id="next-event"
+                  class="button secondary"
+                  aria-label="Next event"
+                >
+                  →</button
+                ><output id="replay-time">0 ms</output>
+              </div>
+              <div id="entity-state" class="entity-state"></div>
+              <div class="replay-grid">
+                <div
+                  id="trace"
+                  class="trace-list"
+                  aria-label="Event trace"
+                ></div>
+                <div id="causal-chain" class="causal-panel">
+                  <h3>Select an event</h3>
+                  <p>Its parent chain explains why it happened.</p>
+                </div>
+              </div>
+            </div>
+          </section>
+          <section id="tab-repair" class="tab-panel" hidden>
+            <div class="paper">
+              <p class="eyebrow">PRESERVE THE INTENTION</p>
+              <h2>A change with receipts.</h2>
+              <p class="help">
+                Each candidate must pass normal-behavior regressions and the
+                searched disruptions. Review the exact YAML before approving its
+                export.
+              </p>
+              <div id="candidates"></div>
+              <div id="review-panel" hidden>
+                <div id="regressions"></div>
+                <div class="editor-pair diff">
+                  <div>
+                    <h3>Before</h3>
+                    <pre id="patch-before"></pre>
+                  </div>
+                  <div>
+                    <h3>After</h3>
+                    <pre id="patch-after"></pre>
+                  </div>
+                </div>
+                <p id="review-note" class="help"></p>
+                <label class="check"
+                  ><input id="confirm-export" type="checkbox" />I have reviewed
+                  this patch and approve this YAML export.</label
+                ><button id="export" class="button" disabled>
+                  Approve and download YAML
+                </button>
+              </div>
+            </div>
+          </section>
+          <section id="tab-source" class="tab-panel" hidden>
+            <div class="paper">
+              <div class="section-heading">
+                <div>
+                  <p class="eyebrow">EXPLICIT CONTEXT</p>
+                  <h2>Your imported model.</h2>
+                </div>
+                <button id="edit-project" class="button secondary">
+                  Edit a new version
+                </button>
+              </div>
+              <div id="context"></div>
+              <details>
+                <summary>Original YAML with source lines</summary>
+                <pre id="source-lines"></pre>
+              </details>
+              <details>
+                <summary>Snapshot, intent and regression tests</summary>
+                <pre id="source-context"></pre>
+              </details>
+              <details>
+                <summary>Potential rule dependencies</summary>
+                <pre id="dependencies"></pre>
+              </details>
+            </div>
+          </section>
+          <section id="tab-evidence" class="tab-panel" hidden>
+            <div class="paper">
+              <p class="eyebrow">AN INDEPENDENT RUNTIME</p>
+              <h2>Checked against Home Assistant.</h2>
+              <p class="help">
+                Recorded reference experiments use real Home Assistant Core with
+                virtual helpers and authenticated REST/WebSocket connections.
+                They validate the reference fixtures below. Your own imported
+                project needs its own independent runtime test.
+              </p>
+              <div id="evidence"></div>
+              <a href="/automation/guide">Reproduce the runtime checks ↗</a>
+            </div>
+          </section>
+        </section>
+        <section id="welcome" class="paper welcome">
+          <p class="eyebrow">A SMALL DISAGREEMENT. A CLEAR CAUSE.</p>
+          <h2>Motion says “off.”<br />You said “keep it on.”</h2>
+          <p>
+            The guided example follows a delayed motion rule overriding manual
+            hold. Watch the failure at 600 ms, then check a guard that preserves
+            ordinary switch-off behavior.
+          </p>
+          <button id="welcome-example" class="button secondary">
+            Start with the example ↗
+          </button>
+          <div class="steps">
+            <span><b>01</b> Import your intention</span
+            ><span><b>02</b> Replay the failure</span
+            ><span><b>03</b> Verify the change</span>
+          </div>
+        </section>
+        <footer class="footer">
+          Supported rules. Declared expectations. Finite experiments.
+          <span>Every result shows its coverage.</span>
+        </footer>
+      </main>
+    </div>
+    <script type="module" src="/automation/app.js"></script>
+  </body>
+</html>

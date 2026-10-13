@@ -1,39 +1,15 @@
 # Rehearse Automations
 
-This branch develops an isolated automation-preflight engine. The original planner remains operational. This is not connected to Alexa and does not edit a live home.
+Start with the [complete guide](overview.md): idea, engine responsibilities, supported scope, end-to-end flow, setup, integrations and remaining owner work.
 
-## Six-phase roadmap
+Phases 1–5 implement strict import, causal replay, bounded search and verified guard repairs, conversational MCP orchestration, durable projects and the integrated workshop. Phase 6 is independent evaluation and submission preparation.
 
-1. Strict import contract, provenance, fixtures, and a real Home Assistant testbed.
-2. Deterministic execution, causal replay, interaction detection, and runtime conformance.
-3. Bounded scenario search, scoped repairs, and regression verification.
-4. Conversational MCP orchestration, identity, projects, and approvals.
-5. Integrated decision/replay UI and optional MCP App.
-6. Independent evaluation and submission assets.
+- [Phase 1 report](reports/phase-1.md)
+- [Phase 2 report](reports/phase-2.md)
+- [Phase 3 report](reports/phase-3.md)
+- [Phase 4 report](reports/phase-4.md)
+- [Phase 5 report](reports/phase-5.md)
+- [Independent Home Assistant testbed](testbed/README.md)
+- [Guided YAML](fixtures/override-debug.yaml) and [snapshot/intent/regressions](fixtures/override-debug.json)
 
-## Phase 1 contract
-
-Install with `npm ci --prefix apps/mcp-server`. Import the example:
-
-```powershell
-node apps/mcp-server/scripts/automationCli.js import automation/fixtures/manual-hold.yaml automation/fixtures/manual-hold.json
-node --test apps/mcp-server/test/automation/*.test.js
-```
-
-Supported: explicit entities (input_boolean, binary_sensor, light, switch); state triggers with required `to` and optional `from`; event triggers with literal flat event data; literal state conditions; sequential on/off actions, light brightness, constant delays, condition steps; single/restart modes. Entity IDs, source lines, hashes and confirmed expectations are retained. Binary sensors are inputs only. Time is virtual milliseconds within a bounded scenario, not wall-clock scheduling.
-
-**Explicit scope adjustment:** clock/time triggers are rejected in v1 rather than implementing unvalidated timezone/DST behavior. Templates, aliases, tags, blueprints, `for`, queued/parallel modes, dynamic/area targets, missing entities and unknown fields reject the whole import. No partial global-pass claim is possible. Files are bounded at 128 KB, 40 rules, 100 entities, 40 actions/rule. No YAML executes code.
-
-Expectations are user-confirmed invariant or final requirements, optionally guarded by literal state conditions. Differing commands alone are an interaction warning, not proof of an unwanted behavior. Unknown/unavailable input must not become a success claim.
-
-## Integration boundary
-
-## Execution and repair (phases 2–3)
-
-Use `automationCli.js run`, `search`, or `repair` with a YAML file and snapshot JSON. `automation/fixtures/override-debug.*` provides two interacting rules, confirmed manual-hold intent, and three independent normal/failure regression assertions. Reports for phases 1–3 include real HA captures and reproducible comparison commands. A passing run covers a finite declared model; pending work, missing evidence and exhausted budgets remain inconclusive. Repairs currently insert a single literal guard and export normalized YAML for review.
-
-The read-only server-side HA adapter reads selected states over authenticated REST. Rules are explicitly imported YAML, not inferred from `/api/states`. Tokens never appear in results. Remote connections require HTTPS. Its read-only limit is application enforcement, not a claim of restricted token privileges.
-
-The independent testbed uses actual Home Assistant Core **2024.12.5**, pinned for available Python 3.12 and run with virtual helpers. This historical runtime is a conformance reference only, not a production recommendation or evidence of compatibility with every later HA version. No production instance/device is connected. Test setup and evidence are described in the phase reports.
-
-Reference semantics: [HA modes](https://www.home-assistant.io/docs/automation/modes/), [triggers](https://www.home-assistant.io/docs/automation/trigger/), [REST](https://developers.home-assistant.io/docs/api/rest/), [WebSocket](https://developers.home-assistant.io/docs/api/websocket/). The exact pinned runtime is the independent authority used by conformance tests.
+The workshop opens at `/automations`. Native Alexa connection and physical-device execution remain pending. Passing experiments cover the declared supported model; the guide documents unknown evidence, finite search and repair limits.
