@@ -1,5 +1,11 @@
+import { WorkshopMcp } from "./mcp.js";
+
 export class WorkshopApi {
   constructor() {
+    this.mcp = new WorkshopMcp({
+      getToken: () => this.token,
+      onExpired: () => this.setSession(null),
+    });
     try {
       this.token = sessionStorage.getItem("automation-token");
       this.username = sessionStorage.getItem("automation-username");
@@ -9,6 +15,7 @@ export class WorkshopApi {
     }
   }
   setSession(session) {
+    this.mcp.reset();
     this.token = session?.accessToken ?? null;
     this.username = session?.username ?? null;
     try {
@@ -69,6 +76,6 @@ export class WorkshopApi {
     return result;
   }
   call(operation, args = {}) {
-    return this.request(`/automation/api/${operation}`, args, true);
+    return this.mcp.call(operation, args);
   }
 }

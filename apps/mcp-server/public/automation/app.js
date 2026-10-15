@@ -520,7 +520,7 @@ await work("Opening the workshop…", async () => {
   health = await api.request("/health");
   accountView();
   $("connection").textContent =
-    `${health.automationStorage === "prisma" ? "Neon storage" : "Temporary memory"} · MCP ready`;
+    `${health.automationStorage === "prisma" ? "Neon storage" : "Temporary memory"} · Workshop uses MCP`;
   evidence = await api.request("/automation/evidence");
   if (api.token) {
     await refreshProjects();
