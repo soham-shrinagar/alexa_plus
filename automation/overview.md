@@ -66,7 +66,7 @@ Patch review binds owner, project, source version/hash, canonical project hash, 
 
 ## Tools and interfaces
 
-All automation tools are available through authenticated MCP Streamable HTTP at `/mcp`, protocol 2025-11-25. The UI calls the same service through authenticated `/automation/api/<operation>` endpoints. It does not create fake local findings.
+All automation tools are available through authenticated MCP Streamable HTTP at `/mcp`, protocol 2025-11-25. The workshop UI is an actual MCP client: initialize, initialized notification, tool discovery and tools/call. Its returning-account token authorizes the same owner-scoped operations. The authenticated `/automation/api/<operation>` facade remains available, but the workshop uses MCP. Public fixed examples/evidence and login use ordinary HTTP. Browser findings come from the service.
 
 | Tool | Purpose |
 | --- | --- |
@@ -94,7 +94,7 @@ The independent HA testbed is actual Home Assistant Core 2024.12.5 on Python 3.1
 
 Weather (Open-Meteo) and traffic (TomTom) remain used by the original journey planner. They are not needed to validate local automation rules. The previously deferred always-on traffic worker and private notification destination remain deferred; no live monitoring is claimed.
 
-Alexa native connection is still pending. The self-hosted MCP endpoint is real, and the web workshop provides a simulated Alexa+ style conversational experience. Real Alexa testing requires eligible toolkit/account access, HTTPS deployment, authorized client setup and completed identity/consent flow. No local login or successful generic MCP test proves connection to Alexa. MCP App packaging is stretch scope, not implemented in these phases.
+The self-hosted MCP endpoint and browser MCP client are real; the product is a simulated Alexa+ conversational experience. The [official FAQ](https://amazonappdev2026.devpost.com/details/faqs), checked October 16, 2026, states the native toolkit is unavailable to ordinary hackathon entrants and permits local repository judging. Use that supported simulation route. Hosting is optional. Native Alexa account linking and MCP App packaging remain future work; no local MCP test establishes a device connection.
 
 ## Setup from a clean checkout
 
@@ -108,6 +108,7 @@ npm run prisma:generate
 npm run prisma:migrate
 npm test
 npm run check
+npm run check:release
 npm --prefix apps/mcp-server start
 ```
 
@@ -161,15 +162,15 @@ For real HA reproduction, follow `automation/testbed/README.md`. Prepare cases w
 3. Bounded search and verified guard — timing variation, counterexample reduction, explicit normal-output checks, normalized patch and six actual before/after HA runs.
 4. Conversation/MCP/persistence — validated Gemini workflow, returning identity, owner-scoped saved state, versions, stale/concurrent approval protection, live Neon and Gemini checks.
 5. Workshop experience — common theme, import/editor, saved projects, conversation, state/causal replay, before/after candidate comparison, patch review, explicit download, optional editable-transcript voice and runtime-evidence view.
-6. Remaining evaluation/submission — held-out independent benchmarks, user trials, measured comparisons, finalized deployment and presentation assets. These were not included in the request to implement phases 1–5.
+6. Evaluation and release preparation — actual browser MCP transport, frozen 13-case synthetic acceptance set, recorded ten-request Gemini-only comparison, configuration/release checks, clean-source installation and complete submission materials. Engineering preparation is complete; human trials, owner licensing/access review, video and final submission remain. The synthetic set is author-written, not a blinded independent benchmark.
 
 ## What remains for you and the submission
 
-1. Test your own realistic supported automations and supply the expectations/normal-output regressions you actually care about. The example proves the workflow; a held-out suite and a few user trials strengthen the submission.
-2. Choose hosting and an HTTPS domain. Set persistent Neon, stable signing secrets, demo/registration policy, allowed origins, backups and resource limits. Redeploy from the branch, generate the Prisma client and deploy migrations. These local changes do not publish a service automatically.
-3. If taking the real Alexa path, obtain authorized Alexa+ MCP toolkit access and complete its required authentication/consent and client configuration. Test the deployed endpoint with the authorized toolkit and actual Alexa account, recording failures honestly. Otherwise submit the permitted simulated experience with source code and a clearly labeled demo. Recheck current official rules/FAQs before submission.
+1. Review licensing or private reviewer access (licensing is explicitly pending by your choice). Test your own realistic supported automations and their independently specified normal outputs; use the prepared worksheet for actual user trials.
+2. Use local judging, or optionally choose hosting/domain and follow deployment.md. Configure Neon, stable secrets, registration/origin policy and backups for deployment. Four high-severity npm audit entries remain through Prisma config dependencies; review/remediate through a separately verified dependency upgrade before production deployment.
+3. Submit the clearly labeled web simulation and real MCP implementation. The current FAQ says native toolkit access is unavailable to ordinary entrants; no OAuth client is needed for local workshop login. Future native integration needs authorized platform access and finished production identity/consent.
 4. Record the end-to-end demo: request → reproducible 600 ms failure → causal chain → same-input repaired replay → normal regression preserved → approved patch export → reference HA evidence. Show limits rather than claiming all homes or all rules are verified.
 5. Finish Devpost fields, source/reviewer access, video and required disclosures according to the live rules. Confirm the actual deadline and any track-specific access requirements directly on the competition site.
 6. Keep the always-on traffic worker/private notification setup marked remaining if you revisit the original planner; it is not required for this automation MVP. Production HA writes, physical rollback, current-release compatibility testing, broader repair vocabulary, exhaustive search, OAuth identity provider and MCP App support are future scope.
 
-Reports under `automation/reports/phase-1.md` through `phase-5.md` describe actual delivery and verification. The source, finite experiment coverage and limitations are the basis of the claims.
+Read [the final implementation report](reports/final-implementation.md) for complete delivery, architecture, flow, verification and owner checklist; [the submission pack](submission.md) for the description/demo/trial materials; and [deployment instructions](deployment.md) for clean installation and optional HTTPS. Phase 1–6 reports and raw evidence are under `automation/reports/`. Final clean-source checks passed 130 tests with zero failures and two external tests skipped; syntax checked 107 JavaScript files. The acceptance corpus passed 13/13; on the shared first ten cases Gemini-only matched 6/10 and the engine 10/10. This small synthetic result is not a representative benchmark. See the raw report and protocol.
