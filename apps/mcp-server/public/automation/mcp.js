@@ -1,7 +1,11 @@
 // Client for this server's JSON-response Streamable HTTP transport.
 // Tool calls are never retried after an ambiguous network failure.
 export class WorkshopMcp {
-  constructor({ fetchImpl = fetch, getToken, onExpired = () => {} } = {}) {
+  constructor({
+    fetchImpl = (...args) => fetch(...args),
+    getToken,
+    onExpired = () => {},
+  } = {}) {
     this.fetch = fetchImpl;
     this.getToken = getToken;
     this.onExpired = onExpired;

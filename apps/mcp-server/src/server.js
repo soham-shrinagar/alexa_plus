@@ -297,7 +297,7 @@ function originGuard(config) {
     const origin = req.get("origin");
     const allowed = config.allowedOrigins.size
       ? config.allowedOrigins.has(origin)
-      : origin === `${req.protocol}://${host}`;
+      : origin === expected.origin;
     if (origin && !allowed)
       return res.status(403).json({ error: "origin_not_allowed" });
     next();

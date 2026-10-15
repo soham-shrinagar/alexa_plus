@@ -5,6 +5,7 @@ export function loadConfig(env = process.env) {
   const port = integer(env.PORT, 3000, "PORT", 0, 65535);
   const publicUrl = (env.PUBLIC_URL || `http://localhost:${port}`).replace(/\/$/, "");
   const url = new URL(publicUrl);
+  if (!["http:", "https:"].includes(url.protocol) || url.username || url.password || url.pathname !== "/" || url.search || url.hash) throw new Error("PUBLIC_URL must be an HTTP(S) origin without credentials, path, query, or fragment.");
   if (!demoMode && url.protocol !== "https:") throw new Error("PUBLIC_URL must use HTTPS outside demo mode.");
   const repositoryMode = env.REPOSITORY_MODE || (env.DATABASE_URL || !demoMode ? "prisma" : "memory");
   if (!["memory", "prisma"].includes(repositoryMode)) throw new Error("REPOSITORY_MODE must be memory or prisma.");

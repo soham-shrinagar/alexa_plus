@@ -3,6 +3,27 @@ import assert from "node:assert/strict";
 import { createApplication } from "../../src/server.js";
 import { WorkshopMcp } from "../../public/automation/mcp.js";
 
+test("default browser fetch is called without a custom receiver", async (t) => {
+  let receiver;
+  t.mock.method(globalThis, "fetch", function (_url, options) {
+    receiver = this;
+    return Promise.resolve(
+      new Response(
+        JSON.stringify({
+          jsonrpc: "2.0",
+          id: JSON.parse(options.body).id,
+          result: { structuredContent: { projects: [] } },
+        }),
+      ),
+    );
+  });
+  const client = new WorkshopMcp({ getToken: () => "local-test" });
+  client.ready = Promise.resolve();
+  client.tools.add("automation.list");
+  assert.deepEqual(await client.call("list"), { projects: [] });
+  assert.notEqual(receiver, client);
+});
+
 test("actual browser MCP client discovers tools, exports once, and reconnects an expired transport", async () => {
   const application = await createApplication({
     config: {
