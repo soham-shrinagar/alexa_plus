@@ -10,6 +10,7 @@
     "test:automation": "node --test apps/mcp-server/test/automation/*.test.js",
     "automation:import": "node apps/mcp-server/scripts/automationCli.js import",
     "automation:ha-cases": "node apps/mcp-server/scripts/haCases.js",
+    "automation:evaluate": "node apps/mcp-server/scripts/evaluateAutomation.js",
     "test:neon": "npm --prefix apps/mcp-server run test:neon",
     "smoke:providers": "node scripts/providerSmoke.js",
     "smoke:journey": "node scripts/providerSmoke.js --journey",
