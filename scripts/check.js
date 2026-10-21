@@ -4,7 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const directories = ["apps/mcp-server/src", "apps/mcp-server/public", "apps/mcp-server/test", "scripts"];
+const directories = ["apps/mcp-server/src", "apps/mcp-server/public", "apps/mcp-server/test", "apps/mcp-server/scripts", "scripts"];
 const files = directories.flatMap((directory) => listJavaScript(path.join(root, directory)));
 for (const file of files) {
   const result = spawnSync(process.execPath, ["--check", file], { stdio: "inherit" });

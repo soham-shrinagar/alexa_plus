@@ -1,0 +1,16 @@
+- id: motion_light
+  alias: Motion lamp with delayed off
+  mode: restart
+  triggers:
+    - trigger: state
+      entity_id: input_boolean.motion
+      to: "on"
+  actions:
+    - action: input_boolean.turn_on
+      target:
+        entity_id: input_boolean.lamp
+    - delay:
+        milliseconds: 600
+    - action: input_boolean.turn_off
+      target:
+        entity_id: input_boolean.lamp

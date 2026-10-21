@@ -1,0 +1,13 @@
+{
+  "provider": "Gemini",
+  "model": "gemini-3.5-flash-lite",
+  "check": "One live request routes to deterministic preflight and verified repair",
+  "passed": true,
+  "operation": "preflight",
+  "failedRegressions": 1,
+  "regressions": 3,
+  "timingExperiments": 26,
+  "eligibleCandidates": 1,
+  "findingsSource": "deterministic_engine",
+  "limitations": "Single smoke request, not an accuracy benchmark. Keys are held in the ignored server environment."
+}

@@ -1,0 +1,138 @@
+{
+  "projectHash": "cafdbde7ed04d55c8656b40bd896ef0ed6e8a14f7e0e54bdbe231650503a1963",
+  "suiteHash": "3b0090ec61e90a85d7f43a68bd9239295f771001bbbec11ac1276b5695bce3ee",
+  "baseline": {
+    "passed": false,
+    "results": [
+      {
+        "scenarioId": "manual_override",
+        "status": "VIOLATION",
+        "findings": [
+          {
+            "kind": "expectation_violation",
+            "expectationId": "respect_hold",
+            "at": 600,
+            "entityId": "input_boolean.lamp",
+            "expected": "on",
+            "actual": {
+              "state": "off"
+            },
+            "cause": 15,
+            "description": "Keep the lamp on while manual hold is enabled"
+          }
+        ],
+        "assertions": [
+          {
+            "entityId": "input_boolean.lamp",
+            "expected": "on",
+            "actual": "off",
+            "passed": false
+          }
+        ],
+        "uncertainties": [],
+        "passed": false
+      },
+      {
+        "scenarioId": "normal_completion",
+        "status": "INCONCLUSIVE",
+        "findings": [],
+        "assertions": [
+          {
+            "entityId": "input_boolean.lamp",
+            "expected": "off",
+            "actual": "off",
+            "passed": true
+          }
+        ],
+        "uncertainties": [],
+        "passed": true
+      },
+      {
+        "scenarioId": "hold_after_completion",
+        "status": "NO_VIOLATION_FOUND",
+        "findings": [],
+        "assertions": [
+          {
+            "entityId": "input_boolean.lamp",
+            "expected": "on",
+            "actual": "on",
+            "passed": true
+          }
+        ],
+        "uncertainties": [],
+        "passed": true
+      }
+    ],
+    "missingExpectations": [],
+    "suiteHash": "3b0090ec61e90a85d7f43a68bd9239295f771001bbbec11ac1276b5695bce3ee",
+    "claim": "All supplied regression assertions and exercised expectations in this finite suite only."
+  },
+  "tested": 26,
+  "truncated": false,
+  "coverage": "First input held fixed; later event times varied around literal delay boundaries; two tie orders. Initial snapshots not varied. Not exhaustive; no probabilities.",
+  "edit": {
+    "kind": "insert_guard",
+    "ruleId": "motion_light",
+    "actionIndex": 2,
+    "condition": {
+      "entityId": "input_boolean.hold",
+      "state": "off"
+    }
+  },
+  "verification": {
+    "passed": true,
+    "results": [
+      {
+        "scenarioId": "manual_override",
+        "status": "NO_VIOLATION_FOUND",
+        "findings": [],
+        "assertions": [
+          {
+            "entityId": "input_boolean.lamp",
+            "expected": "on",
+            "actual": "on",
+            "passed": true
+          }
+        ],
+        "uncertainties": [],
+        "passed": true
+      },
+      {
+        "scenarioId": "normal_completion",
+        "status": "INCONCLUSIVE",
+        "findings": [],
+        "assertions": [
+          {
+            "entityId": "input_boolean.lamp",
+            "expected": "off",
+            "actual": "off",
+            "passed": true
+          }
+        ],
+        "uncertainties": [],
+        "passed": true
+      },
+      {
+        "scenarioId": "hold_after_completion",
+        "status": "NO_VIOLATION_FOUND",
+        "findings": [],
+        "assertions": [
+          {
+            "entityId": "input_boolean.lamp",
+            "expected": "on",
+            "actual": "on",
+            "passed": true
+          }
+        ],
+        "uncertainties": [],
+        "passed": true
+      }
+    ],
+    "missingExpectations": [],
+    "suiteHash": "3b0090ec61e90a85d7f43a68bd9239295f771001bbbec11ac1276b5695bce3ee",
+    "claim": "All supplied regression assertions and exercised expectations in this finite suite only."
+  },
+  "replayed": 26,
+  "remaining": 0,
+  "independentHaCases": 6
+}

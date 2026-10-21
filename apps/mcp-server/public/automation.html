@@ -1,0 +1,411 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Find why your home automations disagree. Replay a failure, verify a repair, and review the change before exporting it."
+    />
+    <title>Rehearse — automation debugger</title>
+    <link rel="stylesheet" href="/automation/style.css" />
+    <link rel="stylesheet" href="/automation/workshop.css" />
+  </head>
+  <body>
+    <a class="skip" href="#workspace">Skip to workspace</a>
+    <div class="shell">
+      <aside class="rail">
+        <a class="brand" href="/automations"
+          ><span class="mark" aria-hidden="true">r↗</span
+          ><span>rehearse<small>The automation workshop</small></span></a
+        >
+        <details id="workspace-switcher" class="workspace-switcher" open>
+          <summary>Your workspaces <span aria-hidden="true">⌄</span></summary>
+          <div class="rail-heading">
+            YOUR WORKSPACES
+            <button
+              id="new-project"
+              class="icon-button"
+              aria-label="Import a new project"
+            >
+              ＋
+            </button>
+          </div>
+          <div id="projects" class="project-list">
+            <p class="rail-empty">Sign in to restore your projects.</p>
+          </div>
+        </details>
+        <div class="rail-footer">
+          <a href="/dayboard">Open the original dayboard ↗</a
+          ><span id="connection">Checking connection…</span
+          ><small>Alexa+ experience simulation</small>
+        </div>
+      </aside>
+      <main id="workspace">
+        <header class="topbar">
+          <span
+            >Workshop <span class="slash">/</span>
+            <b id="workspace-name">Getting started</b></span
+          >
+          <div class="account">
+            <span id="account-name">No account</span
+            ><button id="sign-out" class="text-button" hidden>Sign out</button>
+          </div>
+        </header>
+        <div id="notice" class="notice" role="status" aria-live="polite">
+          Opening the workshop…
+        </div>
+        <section id="intro" class="heading">
+          <div>
+            <p class="eyebrow">THE AUTOMATION WORKSHOP</p>
+            <h1>A little foresight.<br />A calmer home.</h1>
+            <p id="project-description">
+              Check how your automations work together.<br />Understand the
+              cause. Review a better way.
+            </p>
+          </div>
+        </section>
+        <section id="login-panel" class="paper login-panel">
+          <div>
+            <h2>Welcome to Rehearse.</h2>
+            <p id="storage-note">
+              Sign in to save rules, experiments and reviewed changes.
+            </p>
+          </div>
+          <form id="login-form">
+            <div class="field-pair">
+              <label
+                >Username<input
+                  id="username"
+                  name="username"
+                  autocomplete="username"
+                  required
+                  pattern="[a-zA-Z0-9_-]{3,60}"
+                  placeholder="your_username" /></label
+              ><label
+                >Password<input
+                  id="password"
+                  name="password"
+                  type="password"
+                  autocomplete="current-password"
+                  minlength="12"
+                  maxlength="128"
+                  required
+                  placeholder="At least 12 characters"
+              /></label>
+            </div>
+            <div class="actions">
+              <button class="button" type="submit" value="login">Sign in</button
+              ><button
+                id="register"
+                class="button secondary"
+                type="submit"
+                value="register"
+              >
+                Create account
+              </button>
+            </div>
+          </form>
+        </section>
+        <section id="import-panel" class="paper" hidden>
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">NEW EXPERIMENT</p>
+              <h2>Start with your rules.</h2>
+            </div>
+            <button id="example" class="button secondary" type="button">
+              Load the guided example
+            </button>
+          </div>
+          <p class="help">
+            Import supported Home Assistant YAML and a JSON snapshot with
+            confirmed expectations and regression tests. You can edit the
+            example or bring your own files.
+            <a href="/automation/guide">Read the contract and setup guide ↗</a>
+          </p>
+          <form id="import-form">
+            <label
+              >Project name<input
+                id="project-name"
+                required
+                maxlength="120"
+                placeholder="e.g. Hallway manual override"
+            /></label>
+            <div class="editor-pair">
+              <label for="yaml"
+                >Automation YAML
+                <input
+                  id="yaml-file"
+                  type="file"
+                  accept=".yaml,.yml,.txt"
+                  aria-label="Choose automation YAML"
+                /><textarea
+                  id="yaml"
+                  aria-label="Automation YAML"
+                  rows="15"
+                  required
+                  spellcheck="false"
+                  placeholder="id: motion_light&#10;triggers: …&#10;actions: …"
+                ></textarea></label
+              ><label for="snapshot"
+                >Snapshot, expectations and tests (JSON)<input
+                  id="snapshot-file"
+                  type="file"
+                  accept=".json"
+                  aria-label="Choose snapshot JSON"
+                /><textarea
+                  id="snapshot"
+                  aria-label="Snapshot, expectations and tests (JSON)"
+                  rows="15"
+                  required
+                  spellcheck="false"
+                  placeholder='{"entities": {…}, "expectations": […], "suite": […]}'
+                ></textarea>
+              </label>
+            </div>
+            <label class="check"
+              ><input id="confirm-import" type="checkbox" required />I confirm
+              the expectations and regression outputs describe the behavior I
+              want.</label
+            >
+            <div class="actions">
+              <button id="import-submit" class="button" type="submit">
+                Import and save project</button
+              ><button
+                id="cancel-import"
+                type="button"
+                class="button secondary"
+              >
+                Close editor
+              </button>
+            </div>
+            <div id="import-issues" class="issues" hidden></div>
+          </form>
+        </section>
+        <section id="project-panel" hidden>
+          <div class="project-top">
+            <div>
+              <p class="eyebrow" id="version">PROJECT / VERSION 1</p>
+              <h2 id="project-title"></h2>
+            </div>
+            <button id="run" class="button">
+              Run preflight <span aria-hidden="true">↗</span>
+            </button>
+          </div>
+          <nav class="tabs" aria-label="Project views">
+            <button data-tab="overview" class="active" aria-current="page">
+              Investigation</button
+            ><button data-tab="replay">Replay</button
+            ><button data-tab="repair">Repair</button>
+            <details id="project-details" class="project-details">
+              <summary>
+                Project details <span aria-hidden="true">⌄</span>
+              </summary>
+              <div class="details-menu">
+                <button data-tab="source">Rules & context</button>
+                <button data-tab="evidence">Runtime evidence</button>
+              </div>
+            </details>
+          </nav>
+          <section id="tab-overview" class="tab-panel">
+            <div id="metrics" class="metrics"></div>
+            <div class="investigation-grid">
+              <div id="finding-panel" class="paper finding-panel">
+                <div class="section-heading">
+                  <div>
+                    <p class="eyebrow">PREFLIGHT</p>
+                    <h2 id="finding-title">Ready when you are.</h2>
+                  </div>
+                  <span id="finding-status" class="pill">Not checked</span>
+                </div>
+                <div id="findings" class="findings"></div>
+              </div>
+              <div class="paper conversation">
+                <div class="section-heading">
+                  <div>
+                    <h2>Talk it through.</h2>
+                  </div>
+                  <span id="model-state" class="pill">Conversation</span>
+                </div>
+                <div
+                  id="messages"
+                  class="messages"
+                  aria-label="Conversation"
+                ></div>
+                <form id="conversation-form">
+                  <label for="message">Your debugging request</label
+                  ><textarea
+                    id="message"
+                    rows="3"
+                    maxlength="2000"
+                    required
+                    placeholder="Why does the light turn off during manual hold? Check a fix without breaking normal motion behavior."
+                  ></textarea>
+                  <div class="actions composer-actions">
+                    <button class="button" type="submit">Investigate</button
+                    ><button id="mic" type="button" class="button secondary">
+                      Use voice</button
+                    ><button
+                      id="stop-voice"
+                      type="button"
+                      class="text-button"
+                      hidden
+                    >
+                      Stop voice
+                    </button>
+                  </div>
+                  <p id="voice-status" class="help" role="status">
+                    Voice is optional. Review the transcript before sending.
+                  </p>
+                </form>
+              </div>
+            </div>
+            <div id="conversation-detail" class="paper" hidden></div>
+          </section>
+          <section id="tab-replay" class="tab-panel" hidden>
+            <div class="paper">
+              <div class="section-heading">
+                <div>
+                  <p class="eyebrow">REPLAY</p>
+                  <h2>Follow what happened.</h2>
+                </div>
+                <span class="pill">Virtual milliseconds</span>
+              </div>
+              <label for="run-select"
+                >Choose a saved experiment<select id="run-select"></select
+              ></label>
+              <div id="replay-summary" class="help"></div>
+              <div class="replay-controls">
+                <button
+                  id="previous-event"
+                  class="button secondary"
+                  aria-label="Previous event"
+                >
+                  ←</button
+                ><label class="range-label"
+                  >Replay position<input
+                    id="replay-position"
+                    type="range"
+                    min="0"
+                    max="0"
+                    value="0" /></label
+                ><button
+                  id="next-event"
+                  class="button secondary"
+                  aria-label="Next event"
+                >
+                  →</button
+                ><output id="replay-time">0 ms</output>
+              </div>
+              <div id="entity-state" class="entity-state"></div>
+              <div class="replay-grid">
+                <div
+                  id="trace"
+                  class="trace-list"
+                  aria-label="Event trace"
+                ></div>
+                <div id="causal-chain" class="causal-panel">
+                  <h3>Select an event</h3>
+                  <p>Its parent chain explains why it happened.</p>
+                </div>
+              </div>
+            </div>
+          </section>
+          <section id="tab-repair" class="tab-panel" hidden>
+            <div class="paper">
+              <p class="eyebrow">PRESERVE THE INTENTION</p>
+              <h2>A small change. Checked.</h2>
+              <p class="help">
+                Each candidate must pass normal-behavior regressions and the
+                searched disruptions. Review the exact YAML before approving its
+                export.
+              </p>
+              <div id="candidates"></div>
+              <div id="review-panel" hidden>
+                <div id="regressions"></div>
+                <div class="editor-pair diff">
+                  <div>
+                    <h3>Before</h3>
+                    <pre id="patch-before"></pre>
+                  </div>
+                  <div>
+                    <h3>After</h3>
+                    <pre id="patch-after"></pre>
+                  </div>
+                </div>
+                <p id="review-note" class="help"></p>
+                <label class="check"
+                  ><input id="confirm-export" type="checkbox" />I have reviewed
+                  this patch and approve this YAML export.</label
+                ><button id="export" class="button" disabled>
+                  Approve and download YAML
+                </button>
+              </div>
+            </div>
+          </section>
+          <section id="tab-source" class="tab-panel" hidden>
+            <div class="paper">
+              <div class="section-heading">
+                <div>
+                  <p class="eyebrow">EXPLICIT CONTEXT</p>
+                  <h2>Your imported model.</h2>
+                </div>
+                <button id="edit-project" class="button secondary">
+                  Edit a new version
+                </button>
+              </div>
+              <div id="context"></div>
+              <details>
+                <summary>Original YAML with source lines</summary>
+                <pre id="source-lines"></pre>
+              </details>
+              <details>
+                <summary>Snapshot, intent and regression tests</summary>
+                <pre id="source-context"></pre>
+              </details>
+              <details>
+                <summary>Potential rule dependencies</summary>
+                <pre id="dependencies"></pre>
+              </details>
+            </div>
+          </section>
+          <section id="tab-evidence" class="tab-panel" hidden>
+            <div class="paper">
+              <p class="eyebrow">AN INDEPENDENT RUNTIME</p>
+              <h2>Checked against Home Assistant.</h2>
+              <p class="help">
+                Recorded reference experiments use real Home Assistant Core with
+                virtual helpers and authenticated REST/WebSocket connections.
+                They validate the reference fixtures below. Your own imported
+                project needs its own independent runtime test.
+              </p>
+              <div id="evidence"></div>
+              <a href="/automation/guide">Reproduce the runtime checks ↗</a>
+            </div>
+          </section>
+        </section>
+        <section id="welcome" class="paper welcome" hidden>
+          <p class="eyebrow">YOUR FIRST EXPERIMENT</p>
+          <h2>See it with a simple example.</h2>
+          <p>
+            A motion timer switches off a light you wanted to keep on. Find the
+            moment it happens, then test a fix.
+          </p>
+          <button id="welcome-example" class="button secondary">
+            Start with the example ↗
+          </button>
+          <div class="steps">
+            <span><b>01</b> Import your intention</span
+            ><span><b>02</b> Replay the failure</span
+            ><span><b>03</b> Verify the change</span>
+          </div>
+        </section>
+        <footer class="footer">
+          Tested in a model. Reviewed by you.
+          <a href="/automation/guide">Guide & supported rules ↗</a>
+        </footer>
+      </main>
+    </div>
+    <script type="module" src="/automation/app.js"></script>
+  </body>
+</html>

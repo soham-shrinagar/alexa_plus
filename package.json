@@ -7,6 +7,12 @@
     "setup": "node scripts/setup.js",
     "test": "npm --prefix apps/mcp-server test",
     "check": "node scripts/check.js",
+    "test:automation": "node --test apps/mcp-server/test/automation/*.test.js",
+    "automation:import": "node apps/mcp-server/scripts/automationCli.js import",
+    "automation:ha-cases": "node apps/mcp-server/scripts/haCases.js",
+    "automation:evaluate": "node apps/mcp-server/scripts/evaluateAutomation.js",
+    "check:release": "node scripts/automationReleaseCheck.js",
+    "check:automation-config": "node scripts/automationConfigCheck.js",
     "test:neon": "npm --prefix apps/mcp-server run test:neon",
     "smoke:providers": "node scripts/providerSmoke.js",
     "smoke:journey": "node scripts/providerSmoke.js --journey",
@@ -17,7 +23,10 @@
     "prisma:status": "node scripts/prisma.js migrate status"
   },
   "devDependencies": {
-    "@prisma/client": "6.19.1",
-    "prisma": "6.19.1"
+    "@prisma/client": "6.19.3",
+    "prisma": "6.19.3"
+  },
+  "overrides": {
+    "@prisma/config": { "deepmerge-ts": "8.0.2" }
   }
 }

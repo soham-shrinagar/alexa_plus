@@ -1,0 +1,232 @@
+{
+  "runtime": "Home Assistant Core",
+  "version": "2024.12.5",
+  "devices": "virtual input_boolean helpers",
+  "recordedAt": "2026-10-13T21:29:36.222854+00:00",
+  "cases": [
+    {
+      "id": "before_manual_override",
+      "inputHash": "fba1c6e596a46b7994b501bec84f149243097cf9aad8004af43fd78dde6769d3",
+      "finalStates": {
+        "input_boolean.motion": "on",
+        "input_boolean.lamp": "off",
+        "input_boolean.hold": "on"
+      },
+      "events": [
+        {
+          "at": 4,
+          "entityId": "input_boolean.motion",
+          "state": "on",
+          "hasContext": true
+        },
+        {
+          "at": 4,
+          "entityId": "input_boolean.lamp",
+          "state": "on",
+          "hasContext": true
+        },
+        {
+          "at": 253,
+          "entityId": "input_boolean.hold",
+          "state": "on",
+          "hasContext": true
+        },
+        {
+          "at": 606,
+          "entityId": "input_boolean.lamp",
+          "state": "off",
+          "hasContext": true
+        }
+      ],
+      "assertionsPassed": true,
+      "restRead": true,
+      "authenticatedWebSocket": true
+    },
+    {
+      "id": "before_normal_completion",
+      "inputHash": "e155c354d0e3e5cda619d960bec82de09eebbb9d904190aedb4afea3cc774ed9",
+      "finalStates": {
+        "input_boolean.motion": "on",
+        "input_boolean.lamp": "off",
+        "input_boolean.hold": "off"
+      },
+      "events": [
+        {
+          "at": 2,
+          "entityId": "input_boolean.motion",
+          "state": "on",
+          "hasContext": true
+        },
+        {
+          "at": 2,
+          "entityId": "input_boolean.lamp",
+          "state": "on",
+          "hasContext": true
+        },
+        {
+          "at": 604,
+          "entityId": "input_boolean.lamp",
+          "state": "off",
+          "hasContext": true
+        }
+      ],
+      "assertionsPassed": true,
+      "restRead": true,
+      "authenticatedWebSocket": true
+    },
+    {
+      "id": "before_hold_after_completion",
+      "inputHash": "e812da141853e3b4c572e272101c20e7be65bbcbe00345b0d40b3ac93e260915",
+      "finalStates": {
+        "input_boolean.motion": "on",
+        "input_boolean.lamp": "on",
+        "input_boolean.hold": "on"
+      },
+      "events": [
+        {
+          "at": 2,
+          "entityId": "input_boolean.motion",
+          "state": "on",
+          "hasContext": true
+        },
+        {
+          "at": 2,
+          "entityId": "input_boolean.lamp",
+          "state": "on",
+          "hasContext": true
+        },
+        {
+          "at": 605,
+          "entityId": "input_boolean.lamp",
+          "state": "off",
+          "hasContext": true
+        },
+        {
+          "at": 805,
+          "entityId": "input_boolean.hold",
+          "state": "on",
+          "hasContext": true
+        },
+        {
+          "at": 805,
+          "entityId": "input_boolean.lamp",
+          "state": "on",
+          "hasContext": true
+        }
+      ],
+      "assertionsPassed": true,
+      "restRead": true,
+      "authenticatedWebSocket": true
+    },
+    {
+      "id": "after_manual_override",
+      "inputHash": "f3b2a0b7c51939cf4401a9990f204009ac94c8b90a2c780d9f40f24e1b2264b8",
+      "finalStates": {
+        "input_boolean.motion": "on",
+        "input_boolean.lamp": "on",
+        "input_boolean.hold": "on"
+      },
+      "events": [
+        {
+          "at": 2,
+          "entityId": "input_boolean.motion",
+          "state": "on",
+          "hasContext": true
+        },
+        {
+          "at": 2,
+          "entityId": "input_boolean.lamp",
+          "state": "on",
+          "hasContext": true
+        },
+        {
+          "at": 255,
+          "entityId": "input_boolean.hold",
+          "state": "on",
+          "hasContext": true
+        }
+      ],
+      "assertionsPassed": true,
+      "restRead": true,
+      "authenticatedWebSocket": true
+    },
+    {
+      "id": "after_normal_completion",
+      "inputHash": "bd304fca45670c7f5e108709beba26059e69e888a3b4225897c1f1c6e5efb379",
+      "finalStates": {
+        "input_boolean.motion": "on",
+        "input_boolean.lamp": "off",
+        "input_boolean.hold": "off"
+      },
+      "events": [
+        {
+          "at": 3,
+          "entityId": "input_boolean.motion",
+          "state": "on",
+          "hasContext": true
+        },
+        {
+          "at": 3,
+          "entityId": "input_boolean.lamp",
+          "state": "on",
+          "hasContext": true
+        },
+        {
+          "at": 604,
+          "entityId": "input_boolean.lamp",
+          "state": "off",
+          "hasContext": true
+        }
+      ],
+      "assertionsPassed": true,
+      "restRead": true,
+      "authenticatedWebSocket": true
+    },
+    {
+      "id": "after_hold_after_completion",
+      "inputHash": "30ba604d89a4be7196183706a294649aabbed9d45856177552f547375d4c63fd",
+      "finalStates": {
+        "input_boolean.motion": "on",
+        "input_boolean.lamp": "on",
+        "input_boolean.hold": "on"
+      },
+      "events": [
+        {
+          "at": 3,
+          "entityId": "input_boolean.motion",
+          "state": "on",
+          "hasContext": true
+        },
+        {
+          "at": 3,
+          "entityId": "input_boolean.lamp",
+          "state": "on",
+          "hasContext": true
+        },
+        {
+          "at": 604,
+          "entityId": "input_boolean.lamp",
+          "state": "off",
+          "hasContext": true
+        },
+        {
+          "at": 803,
+          "entityId": "input_boolean.hold",
+          "state": "on",
+          "hasContext": true
+        },
+        {
+          "at": 803,
+          "entityId": "input_boolean.lamp",
+          "state": "on",
+          "hasContext": true
+        }
+      ],
+      "assertionsPassed": true,
+      "restRead": true,
+      "authenticatedWebSocket": true
+    }
+  ],
+  "exportYamlSha256": "c114c12ebc79cc6a096eac337ebc6f639827f72ce8db65385e8f724b0eadc981",
+  "actualExportParsedWithHomeAssistantYaml": true
+}

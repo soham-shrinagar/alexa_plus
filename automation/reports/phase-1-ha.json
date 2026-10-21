@@ -1,0 +1,78 @@
+{
+  "runtime": "Home Assistant Core",
+  "version": "2024.12.5",
+  "devices": "virtual input_boolean helpers",
+  "recordedAt": "2026-10-13T19:15:35.636137+00:00",
+  "cases": [
+    {
+      "id": "hold_during_delay",
+      "inputHash": "fcc724f579fb3fbd4b966f4b39817538c1dcb0e4cb818c292e91aafe8211ebad",
+      "finalStates": {
+        "input_boolean.motion": "on",
+        "input_boolean.lamp": "off",
+        "input_boolean.hold": "on"
+      },
+      "events": [
+        {
+          "at": 3,
+          "entityId": "input_boolean.motion",
+          "state": "on",
+          "hasContext": true
+        },
+        {
+          "at": 3,
+          "entityId": "input_boolean.lamp",
+          "state": "on",
+          "hasContext": true
+        },
+        {
+          "at": 253,
+          "entityId": "input_boolean.hold",
+          "state": "on",
+          "hasContext": true
+        },
+        {
+          "at": 606,
+          "entityId": "input_boolean.lamp",
+          "state": "off",
+          "hasContext": true
+        }
+      ],
+      "assertionsPassed": true,
+      "restRead": true,
+      "authenticatedWebSocket": true
+    },
+    {
+      "id": "ordinary_motion",
+      "inputHash": "2be00c14b2d3518034230a2f6d0371b3608250ad3708a24d35e4ebf8bb5c4ffc",
+      "finalStates": {
+        "input_boolean.motion": "on",
+        "input_boolean.lamp": "off",
+        "input_boolean.hold": "off"
+      },
+      "events": [
+        {
+          "at": 1,
+          "entityId": "input_boolean.motion",
+          "state": "on",
+          "hasContext": true
+        },
+        {
+          "at": 2,
+          "entityId": "input_boolean.lamp",
+          "state": "on",
+          "hasContext": true
+        },
+        {
+          "at": 604,
+          "entityId": "input_boolean.lamp",
+          "state": "off",
+          "hasContext": true
+        }
+      ],
+      "assertionsPassed": true,
+      "restRead": true,
+      "authenticatedWebSocket": true
+    }
+  ]
+}

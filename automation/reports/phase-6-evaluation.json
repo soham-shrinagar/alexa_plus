@@ -1,0 +1,366 @@
+{
+  "generatedAt": "2026-10-15T20:21:47.275Z",
+  "corpusHash": "828021e508fa39e98a9f52429c6c2cfd164a2bd6da538c6a8a9056e2274290fb",
+  "corpusType": "Author-written synthetic acceptance set; not blinded or independently sampled",
+  "total": 13,
+  "passed": 13,
+  "falseAlarmsOnCleanCases": 0,
+  "missedDeclaredViolations": 0,
+  "confusion": {
+    "VIOLATION -> VIOLATION": 3,
+    "NO_VIOLATION_FOUND -> NO_VIOLATION_FOUND": 4,
+    "INCONCLUSIVE -> INCONCLUSIVE": 3,
+    "UNASSESSED -> UNASSESSED": 1,
+    "UNSUPPORTED -> UNSUPPORTED": 2
+  },
+  "results": [
+    {
+      "id": "delayed_desk_override",
+      "category": "conflict",
+      "expected": "VIOLATION",
+      "actual": "VIOLATION",
+      "assertions": [
+        {
+          "entityId": "switch.desk",
+          "expected": "off",
+          "actual": "off",
+          "passed": true
+        }
+      ],
+      "eligibleRepairs": 1,
+      "expectedRepair": true,
+      "repairRegressionPasses": true,
+      "passed": true,
+      "elapsedMs": 28.39,
+      "uncertainties": [],
+      "findings": 1
+    },
+    {
+      "id": "guarded_desk",
+      "category": "clean",
+      "expected": "NO_VIOLATION_FOUND",
+      "actual": "NO_VIOLATION_FOUND",
+      "assertions": [
+        {
+          "entityId": "switch.desk",
+          "expected": "on",
+          "actual": "on",
+          "passed": true
+        }
+      ],
+      "eligibleRepairs": 0,
+      "expectedRepair": false,
+      "repairRegressionPasses": true,
+      "passed": true,
+      "elapsedMs": 10.57,
+      "uncertainties": [],
+      "findings": 0
+    },
+    {
+      "id": "ordinary_opposing_commands",
+      "category": "clean",
+      "expected": "NO_VIOLATION_FOUND",
+      "actual": "NO_VIOLATION_FOUND",
+      "assertions": [
+        {
+          "entityId": "switch.desk",
+          "expected": "off",
+          "actual": "off",
+          "passed": true
+        }
+      ],
+      "eligibleRepairs": 0,
+      "expectedRepair": false,
+      "repairRegressionPasses": true,
+      "passed": true,
+      "elapsedMs": 3.77,
+      "uncertainties": [],
+      "findings": 0
+    },
+    {
+      "id": "unknown_guard",
+      "category": "incomplete",
+      "expected": "INCONCLUSIVE",
+      "actual": "INCONCLUSIVE",
+      "assertions": [
+        {
+          "entityId": "switch.desk",
+          "expected": "on",
+          "actual": "on",
+          "passed": true
+        }
+      ],
+      "eligibleRepairs": 0,
+      "expectedRepair": false,
+      "repairRegressionPasses": true,
+      "passed": true,
+      "elapsedMs": 4.59,
+      "uncertainties": [
+        "Unknown condition: input_boolean.keep",
+        "Expectation not exercised: intent"
+      ],
+      "findings": 0
+    },
+    {
+      "id": "unfinished_delay",
+      "category": "incomplete",
+      "expected": "INCONCLUSIVE",
+      "actual": "INCONCLUSIVE",
+      "assertions": [
+        {
+          "entityId": "switch.desk",
+          "expected": "on",
+          "actual": "on",
+          "passed": true
+        }
+      ],
+      "eligibleRepairs": 0,
+      "expectedRepair": false,
+      "repairRegressionPasses": true,
+      "passed": true,
+      "elapsedMs": 3.86,
+      "uncertainties": [
+        "Pending work beyond horizon or budget"
+      ],
+      "findings": 0
+    },
+    {
+      "id": "no_confirmed_intent",
+      "category": "ambiguous",
+      "expected": "UNASSESSED",
+      "actual": "UNASSESSED",
+      "assertions": [
+        {
+          "entityId": "switch.desk",
+          "expected": "off",
+          "actual": "off",
+          "passed": true
+        }
+      ],
+      "eligibleRepairs": 0,
+      "expectedRepair": false,
+      "repairRegressionPasses": true,
+      "passed": true,
+      "elapsedMs": 4.56,
+      "uncertainties": [],
+      "findings": 0
+    },
+    {
+      "id": "event_filter_miss",
+      "category": "clean",
+      "expected": "NO_VIOLATION_FOUND",
+      "actual": "NO_VIOLATION_FOUND",
+      "assertions": [
+        {
+          "entityId": "switch.desk",
+          "expected": "off",
+          "actual": "off",
+          "passed": true
+        }
+      ],
+      "eligibleRepairs": 0,
+      "expectedRepair": false,
+      "repairRegressionPasses": true,
+      "passed": true,
+      "elapsedMs": 4.58,
+      "uncertainties": [],
+      "findings": 0
+    },
+    {
+      "id": "two_rule_chain",
+      "category": "clean",
+      "expected": "NO_VIOLATION_FOUND",
+      "actual": "NO_VIOLATION_FOUND",
+      "assertions": [
+        {
+          "entityId": "switch.desk",
+          "expected": "on",
+          "actual": "on",
+          "passed": true
+        }
+      ],
+      "eligibleRepairs": 0,
+      "expectedRepair": false,
+      "repairRegressionPasses": true,
+      "passed": true,
+      "elapsedMs": 4,
+      "uncertainties": [],
+      "findings": 0
+    },
+    {
+      "id": "unsupported_repair_intent",
+      "category": "conflict",
+      "expected": "VIOLATION",
+      "actual": "VIOLATION",
+      "assertions": [
+        {
+          "entityId": "switch.desk",
+          "expected": "off",
+          "actual": "off",
+          "passed": true
+        }
+      ],
+      "eligibleRepairs": 0,
+      "expectedRepair": false,
+      "repairRegressionPasses": true,
+      "passed": true,
+      "elapsedMs": 2.49,
+      "uncertainties": [],
+      "findings": 1
+    },
+    {
+      "id": "brightness_limit",
+      "category": "conflict",
+      "expected": "VIOLATION",
+      "actual": "VIOLATION",
+      "assertions": [
+        {
+          "entityId": "light.study",
+          "expected": "on",
+          "actual": "on",
+          "passed": true
+        }
+      ],
+      "eligibleRepairs": 0,
+      "expectedRepair": false,
+      "repairRegressionPasses": true,
+      "passed": true,
+      "elapsedMs": 1.97,
+      "uncertainties": [],
+      "findings": 1
+    },
+    {
+      "id": "bounded_feedback",
+      "category": "incomplete",
+      "expected": "INCONCLUSIVE",
+      "actual": "INCONCLUSIVE",
+      "assertions": [],
+      "eligibleRepairs": 0,
+      "expectedRepair": false,
+      "repairRegressionPasses": true,
+      "passed": true,
+      "elapsedMs": 2.83,
+      "uncertainties": [
+        "Step budget exhausted; possible feedback loop, not proof of one",
+        "Pending work beyond horizon or budget"
+      ],
+      "findings": 0
+    },
+    {
+      "id": "parallel_rejected",
+      "category": "unsupported",
+      "expected": "UNSUPPORTED",
+      "actual": "UNSUPPORTED",
+      "assertions": [],
+      "eligibleRepairs": 0,
+      "expectedRepair": false,
+      "repairRegressionPasses": true,
+      "passed": true,
+      "elapsedMs": 1.8,
+      "uncertainties": [],
+      "findings": 0
+    },
+    {
+      "id": "queued_rejected",
+      "category": "unsupported",
+      "expected": "UNSUPPORTED",
+      "actual": "UNSUPPORTED",
+      "assertions": [],
+      "eligibleRepairs": 0,
+      "expectedRepair": false,
+      "repairRegressionPasses": true,
+      "passed": true,
+      "elapsedMs": 1,
+      "uncertainties": [],
+      "findings": 0
+    }
+  ],
+  "llmBaseline": {
+    "model": "gemini-3.5-flash-lite",
+    "protocol": "Single request per first ten frozen cases; no tools, no labels or engine results supplied, temperature 0.1. Status comparison only; no repair-quality claim.",
+    "total": 10,
+    "correct": 6,
+    "results": [
+      {
+        "id": "delayed_desk_override",
+        "expected": "VIOLATION",
+        "actual": "NO_VIOLATION_FOUND",
+        "correct": false,
+        "explanation": "The automation behaves as expected for the given scenario and expectations.",
+        "elapsedMs": 1697
+      },
+      {
+        "id": "guarded_desk",
+        "expected": "NO_VIOLATION_FOUND",
+        "actual": "NO_VIOLATION_FOUND",
+        "correct": true,
+        "explanation": "The automation satisfies the expectation because when input_boolean.keep becomes on, the keep_on automation triggers and ensures switch.desk is turned on.",
+        "elapsedMs": 1710
+      },
+      {
+        "id": "ordinary_opposing_commands",
+        "expected": "NO_VIOLATION_FOUND",
+        "actual": "NO_VIOLATION_FOUND",
+        "correct": true,
+        "explanation": "The automation turns on switch.desk when occupancy turns on, waits 420 milliseconds, and then turns it off. At the end of the scenario at timestamp 1000, switch.desk has returned to its off state, satisfying the expectation.",
+        "elapsedMs": 1729
+      },
+      {
+        "id": "unknown_guard",
+        "expected": "INCONCLUSIVE",
+        "actual": "UNASSESSED",
+        "correct": false,
+        "explanation": "No confirmed intent is present because the expectation specifies input_boolean.keep as 'on' while the scenario only triggers occupancy to 'on' without setting keep to 'on'.",
+        "elapsedMs": 1508
+      },
+      {
+        "id": "unfinished_delay",
+        "expected": "INCONCLUSIVE",
+        "actual": "NO_VIOLATION_FOUND",
+        "correct": false,
+        "explanation": "The automation turns on switch.desk when input_boolean.keep becomes on. At t=300, input_boolean.keep turns on, triggering the keep_on automation which ensures switch.desk is turned on. This matches the expectation that switch.desk is on by t=350.",
+        "elapsedMs": 1645
+      },
+      {
+        "id": "no_confirmed_intent",
+        "expected": "UNASSESSED",
+        "actual": "UNASSESSED",
+        "correct": true,
+        "explanation": "No confirmed intent expectations provided in the scenario.",
+        "elapsedMs": 1371
+      },
+      {
+        "id": "event_filter_miss",
+        "expected": "NO_VIOLATION_FOUND",
+        "actual": "NO_VIOLATION_FOUND",
+        "correct": true,
+        "explanation": "The automation triggers on desk_button with event_data button: right, but the scenario fires an event with button: left. Therefore, the automation does not trigger, and switch.desk remains off as expected.",
+        "elapsedMs": 1514
+      },
+      {
+        "id": "two_rule_chain",
+        "expected": "NO_VIOLATION_FOUND",
+        "actual": "NO_VIOLATION_FOUND",
+        "correct": true,
+        "explanation": "The automation correctly turns on input_boolean.keep when input_boolean.occupancy turns on, which in turn triggers switch.desk to turn on, matching the expectation.",
+        "elapsedMs": 1619
+      },
+      {
+        "id": "unsupported_repair_intent",
+        "expected": "VIOLATION",
+        "actual": "UNASSESSED",
+        "correct": false,
+        "explanation": "No confirmed intent is present in the expectations indicating a violation, and the scenario events do not present a clear violation of a confirmed expectation.",
+        "elapsedMs": 1404
+      },
+      {
+        "id": "brightness_limit",
+        "expected": "VIOLATION",
+        "actual": "VIOLATION",
+        "correct": true,
+        "explanation": "The automation sets the brightness of light.study to 220 when the 'study' event triggers, which violates the expectation that the maxBrightness should be 80.",
+        "elapsedMs": 1536
+      }
+    ]
+  }
+}
