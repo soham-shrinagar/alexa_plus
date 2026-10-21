@@ -14,7 +14,7 @@
   "license": "ISC",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.32.1",
-    "@prisma/client": "6.19.1",
+    "@prisma/client": "6.19.3",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
     "rehearse-alexa-plus": "file:../..",
@@ -26,6 +26,11 @@
     "node": ">=22.9.0"
   },
   "devDependencies": {
-    "prisma": "6.19.1"
+    "prisma": "6.19.3"
+  },
+  "overrides": {
+    "@prisma/config": {
+      "deepmerge-ts": "8.0.2"
+    }
   }
 }

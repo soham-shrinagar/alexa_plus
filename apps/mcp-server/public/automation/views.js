@@ -16,6 +16,7 @@ const button = (text, callback, secondary = true) => {
   return b;
 };
 export function showTab(name) {
+  $("project-details").open = false;
   document.querySelectorAll("[data-tab]").forEach((b) => {
     const active = b.dataset.tab === name;
     b.classList.toggle("active", active);
@@ -44,6 +45,28 @@ export function projectsView(projects, currentId, onSelect) {
 }
 export function overviewView(workspace, onReplay, configured) {
   const analysis = workspace.analysis;
+  const failures =
+    analysis?.baseline.results.filter((r) => !r.passed).length ?? 0;
+  const searchFailures = analysis?.explored.counterexamples.length ?? 0;
+  const searchIncomplete =
+    analysis?.explored.results.some((r) => r.status === "INCONCLUSIVE") ??
+    false;
+  $("finding-title").textContent = !analysis
+    ? "Ready when you are."
+    : failures
+      ? "A behavior needs attention."
+      : searchFailures
+        ? "Timing reveals an interaction."
+        : !analysis.baseline.passed || searchIncomplete
+          ? "More context is needed."
+          : "Your declared checks passed.";
+  $("finding-status").textContent = !analysis
+    ? "Not checked"
+    : failures || searchFailures
+      ? "Review findings"
+      : !analysis.baseline.passed || searchIncomplete
+        ? "Incomplete"
+        : "Checked";
   const metrics = analysis
     ? [
         [analysis.baseline.results.length, "Declared regressions"],
@@ -71,14 +94,9 @@ export function overviewView(workspace, onReplay, configured) {
     }),
   );
   $("model-state").textContent = configured
-    ? "Gemini connected"
+    ? "Conversation available"
     : "Direct checks available";
   $("messages").replaceChildren();
-  if (!workspace.conversation.length)
-    empty(
-      $("messages"),
-      "Ask why a rule behaves unexpectedly, request a verified fix, or try a hypothetical disruption. Direct preflight works without conversation.",
-    );
   for (const message of workspace.conversation) {
     const div = node("div", undefined, `message ${message.role}`);
     div.append(
@@ -97,6 +115,11 @@ export function overviewView(workspace, onReplay, configured) {
     );
     return;
   }
+  const coverage = node("details", undefined, "coverage-details");
+  coverage.append(node("summary", "Assertions & search coverage"));
+  let visibleFindings = 0;
+  const more = node("details");
+  more.append(node("summary", "More findings"));
   for (const result of analysis.baseline.results) {
     for (const finding of result.findings) {
       const div = node("article", undefined, "finding");
@@ -111,10 +134,10 @@ export function overviewView(workspace, onReplay, configured) {
           onReplay(result.scenarioId, finding.cause),
         ),
       );
-      target.append(div);
+      (visibleFindings++ === 0 ? target : more).append(div);
     }
     for (const assertion of result.assertions.filter((a) => !a.passed))
-      target.append(
+      coverage.append(
         node(
           "p",
           `${result.scenarioId}: ${assertion.entityId} should finish ${assertion.expected}; observed ${assertion.actual}.`,
@@ -122,7 +145,7 @@ export function overviewView(workspace, onReplay, configured) {
         ),
       );
     if (result.uncertainties.length)
-      target.append(
+      coverage.append(
         node(
           "p",
           `${result.scenarioId}: ${result.uncertainties.join("; ")}`,
@@ -138,21 +161,50 @@ export function overviewView(workspace, onReplay, configured) {
         "help",
       ),
     );
+  if (visibleFindings > 1) target.append(more);
   if (analysis.baseline.missingExpectations.length)
-    target.append(
+    coverage.append(
       node(
         "p",
         `Intent not exercised: ${analysis.baseline.missingExpectations.join(", ")}`,
         "help",
       ),
     );
-  target.append(
+  coverage.append(
     node(
       "p",
       `${analysis.explored.coverage}${analysis.explored.truncated ? " Search was truncated at its experiment limit." : ""}`,
       "help",
     ),
   );
+  if (searchFailures && !visibleFindings)
+    target.append(
+      node(
+        "p",
+        `${searchFailures} searched experiments broke an expectation. Review the search results below.`,
+        "help",
+      ),
+    );
+  if (searchFailures) {
+    const searched = node("details");
+    searched.append(
+      node("summary", "Timing counterexamples"),
+      node(
+        "pre",
+        JSON.stringify(
+          analysis.explored.counterexamples.map((r) => ({
+            scenario: r.scenario,
+            reverseTies: r.reverseTies,
+            findings: r.findings,
+          })),
+          null,
+          2,
+        ),
+      ),
+    );
+    coverage.append(searched);
+  }
+  target.append(coverage);
 }
 export function candidatesView(workspace, onReview, onCompare) {
   const target = $("candidates");
@@ -191,11 +243,16 @@ export function candidatesView(workspace, onReview, onCompare) {
         "p",
         `Insert before action ${candidate.edit.actionIndex + 1} in ${candidate.edit.ruleId}. ${candidate.rationale}`,
       ),
-      node(
-        "p",
-        `${candidate.replayed} searched experiments replayed; ${candidate.remaining} unresolved. ${candidate.limitations}`,
-      ),
     );
+    const detail = node("details");
+    detail.append(
+      node(
+        "summary",
+        `${candidate.replayed} experiments checked · verification details`,
+      ),
+      node("p", `${candidate.remaining} unresolved. ${candidate.limitations}`),
+    );
+    article.append(detail);
     const actions = node("div", undefined, "actions");
     if (candidate.eligible)
       actions.append(

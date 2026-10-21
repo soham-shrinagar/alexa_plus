@@ -2,7 +2,7 @@
 
 A conversational debugger and preflight checker for supported Home Assistant automations. Import your rules and expected behavior, replay a failure, verify a scoped repair, and review its YAML before exporting.
 
-The workshop is the primary experience on `new/automation`, at `/` or `/automations`. The original day/journey planner remains at `/dayboard`. Each implementation phase has its own commit and report.
+The workshop is the primary experience at `/` or `/automations`. The original day/journey planner remains at `/dayboard`; `new/automation` is retained as the development branch. Each implementation phase has its own commit and report.
 
 ## Start here
 
@@ -70,7 +70,7 @@ Source modules: `apps/mcp-server/src/automation/`; browser modules: `apps/mcp-se
 
 The server and web client use real MCP; the product is a simulated Alexa+ experience. The [official FAQ](https://amazonappdev2026.devpost.com/details/faqs), checked October 16, says toolkit access is unavailable to ordinary entrants and permits a locally runnable repository/demo. Native Alexa linking and the MCP App extension remain future work.
 
-Phase 6 engineering preparation is delivered: the actual browser MCP workflow, frozen synthetic evaluation, live LLM-only comparison, clean-source release checks and submission materials. Final checks passed 130 tests (two external tests skipped) and all 13 acceptance cases. On ten shared synthetic cases the engine matched 10/10 labels and Gemini-only 6/10; see the protocol/raw report rather than treating this as representative accuracy. Owner licensing/access review, human trials, video publication and Devpost submission remain. Licensing was explicitly left pending. Optional production deployment also requires reviewing the four current Prisma-chain high-severity audit entries and configuring stable secrets. Recheck the [official rules](https://amazonappdev2026.devpost.com/rules) before submitting.
+Phase 6 engineering preparation is delivered: the actual browser MCP workflow, frozen synthetic evaluation, live LLM-only comparison, clean-source release checks and submission materials. The [October 21 release](automation/reports/release-2026-10-21.md) adds the minimal three-view workshop, dependency fixes, Neon connection handling and automated PR checks. Both dependency audits report zero vulnerabilities. On ten shared synthetic cases the engine matched 10/10 labels and Gemini-only 6/10; see the protocol/raw report rather than treating this as representative accuracy. Owner licensing/access review, human trials, video publication and Devpost submission remain. Licensing was explicitly left pending. Optional production deployment requires stable private secrets and hosting configuration. Recheck the [official rules](https://amazonappdev2026.devpost.com/rules) before submitting.
 
 The original planner retains Gemini, TomTom, Open-Meteo, calendar export and simulated recovery at `/dayboard`. Its always-on traffic worker/private notification channel remains explicitly deferred. Weather/traffic are not required for automation debugging.
 

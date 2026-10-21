@@ -1,5 +1,7 @@
 # Rehearse Automations — complete product and setup guide
 
+October 21 release: the workshop uses three primary views (Investigation, Replay, Repair), with context and runtime evidence under Project details. The intro is removed from open projects and mobile workspaces collapse into a switcher. Prisma/client are now 6.19.3 with a scoped merge-dependency fix; both audits report zero vulnerabilities. Runtime Neon URLs without an explicit timeout get a bounded 20-second connection budget. CI runs the release gate and audits for branch pushes and PRs. See the October 21 release report under automation/reports/.
+
 ## What we are building
 
 Rehearse is a conversational debugger and preflight checker for a supported subset of Home Assistant automations. A household describes what should happen, imports its rules and selected entity state, and supplies experiments with expected outputs. Rehearse runs those rules, shows the sequence that breaks the expectation, tries a narrowly scoped repair, and checks that normal behavior survives. The owner reviews the exact change before exporting YAML.
@@ -112,7 +114,7 @@ npm run check:release
 npm --prefix apps/mcp-server start
 ```
 
-Open `http://localhost:3000/automations`. Create an account with a username (3–60 letters/digits/underscore/hyphen, normalized lower-case) and password (12–128 characters). Load the guided example, read the JSON's expectation and expected outputs, confirm and import. Ask for preflight or press Run preflight. Click Follow the causal chain, then Repair review → Replay before & after → Review exact patch → explicitly approve/download.
+Open `http://localhost:3000/automations`. Create an account with a username (3–60 letters/digits/underscore/hyphen, normalized lower-case) and password (12–128 characters). Load the guided example, read the JSON's expectation and expected outputs, confirm and import. Ask for preflight or press Run preflight. Click Follow the causal chain, then the Repair tab → Replay before & after → Review exact patch → explicitly approve/download. Rules and runtime evidence are under Project details.
 
 Server environment:
 
@@ -167,7 +169,7 @@ For real HA reproduction, follow `automation/testbed/README.md`. Prepare cases w
 ## What remains for you and the submission
 
 1. Review licensing or private reviewer access (licensing is explicitly pending by your choice). Test your own realistic supported automations and their independently specified normal outputs; use the prepared worksheet for actual user trials.
-2. Use local judging, or optionally choose hosting/domain and follow deployment.md. Configure Neon, stable secrets, registration/origin policy and backups for deployment. Four high-severity npm audit entries remain through Prisma config dependencies; review/remediate through a separately verified dependency upgrade before production deployment.
+2. Use local judging, or optionally choose hosting/domain and follow deployment.md. Configure Neon, stable secrets, registration/origin policy and backups for deployment. The October 21 dependency update resolves the earlier Prisma-chain audit findings; continue auditing subsequent installs.
 3. Submit the clearly labeled web simulation and real MCP implementation. The current FAQ says native toolkit access is unavailable to ordinary entrants; no OAuth client is needed for local workshop login. Future native integration needs authorized platform access and finished production identity/consent.
 4. Record the end-to-end demo: request → reproducible 600 ms failure → causal chain → same-input repaired replay → normal regression preserved → approved patch export → reference HA evidence. Show limits rather than claiming all homes or all rules are verified.
 5. Finish Devpost fields, source/reviewer access, video and required disclosures according to the live rules. Confirm the actual deadline and any track-specific access requirements directly on the competition site.

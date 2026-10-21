@@ -14,6 +14,12 @@ import {
 import { VoiceController } from "../workspace/voice.js";
 
 const api = new WorkshopApi();
+const mobileLayout = window.matchMedia("(max-width: 760px)");
+const resizeWorkspaceMenu = () => {
+  $("workspace-switcher").open = !mobileLayout.matches;
+};
+mobileLayout.addEventListener("change", resizeWorkspaceMenu);
+resizeWorkspaceMenu();
 let workspace = null,
   projects = [],
   health = null,
@@ -32,12 +38,21 @@ const voice = new VoiceController({
   },
   onState: (text) => {
     $("voice-status").textContent = text;
+    $("stop-voice").hidden = !voice.listening;
   },
 });
 
 function notice(text, error = false) {
   $("notice").textContent = text;
   $("notice").classList.toggle("error", error);
+  $("notice").classList.toggle("progress", busy && !error);
+}
+function screenView() {
+  const importing = !$("import-panel").hidden;
+  document.body.classList.toggle("has-project", Boolean(workspace));
+  $("intro").hidden = Boolean(workspace) || importing;
+  $("project-panel").hidden = !workspace || importing;
+  $("welcome").hidden = !api.token || Boolean(workspace) || importing;
 }
 function accountView() {
   $("login-panel").hidden = Boolean(api.token);
@@ -48,6 +63,7 @@ function accountView() {
       ? "Your account and projects are stored in Neon. Sign in again to restore them on another session."
       : "This server uses temporary memory. Accounts and projects are lost when it restarts. Configure Neon for persistence.";
   $("register").hidden = health?.automationRegistrationEnabled === false;
+  screenView();
 }
 function resetSession() {
   api.setSession(null);
@@ -80,6 +96,7 @@ async function work(message, action) {
     busy = false;
     document.body.classList.remove("working");
     $("workspace").removeAttribute("aria-busy");
+    $("notice").classList.remove("progress");
   }
 }
 function requireLogin() {
@@ -178,6 +195,7 @@ function renderWorkspace() {
   projectsView(projects, workspace.id, (id) =>
     work("Restoring your project…", () => loadProject(id)),
   );
+  screenView();
 }
 async function loadProject(id) {
   workspace = await api.call("get", { projectId: id });
@@ -200,6 +218,7 @@ function openImport(update = false) {
   $("export").disabled = true;
   editing = update;
   $("import-panel").hidden = false;
+  screenView();
   $("confirm-import").checked = false;
   $("import-issues").hidden = true;
   $("import-submit").textContent = update
@@ -224,6 +243,11 @@ function openImport(update = false) {
   }
   $("import-panel").scrollIntoView({ behavior: "smooth", block: "start" });
   $("project-name").focus();
+  notice(
+    update
+      ? "Edit the source, then confirm and save a new version. Previous export approval has been cleared."
+      : "Load the example or add your rules and expected behavior.",
+  );
 }
 async function loadExample() {
   if (!requireLogin()) return;
@@ -299,7 +323,7 @@ $("login-form").addEventListener("submit", (event) => {
       notice(
         "Account ready. Load the guided example or import your own rules.",
       );
-      openImport();
+      screenView();
     }
   });
 });
@@ -323,6 +347,7 @@ for (const id of ["example", "welcome-example"])
   );
 $("cancel-import").addEventListener("click", () => {
   $("import-panel").hidden = true;
+  screenView();
 });
 for (const [inputId, targetId] of [
   ["yaml-file", "yaml"],

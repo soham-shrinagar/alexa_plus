@@ -11,9 +11,10 @@ Phases 1–5 implement strict import, causal replay, bounded search and verified
 - [Phase 5 report](reports/phase-5.md)
 - [Phase 6A: browser MCP](reports/phase-6a.md), [6B: evaluation](reports/phase-6b.md), [6C: release](reports/phase-6c.md)
 - [Final implementation and handoff report](reports/final-implementation.md)
+- [October 21 UI and engineering release](reports/release-2026-10-21.md)
 - [Clean setup and optional deployment](deployment.md)
 - [Submission description, demo storyboard and user-trial worksheet](submission.md)
 - [Independent Home Assistant testbed](testbed/README.md)
 - [Guided YAML](fixtures/override-debug.yaml) and [snapshot/intent/regressions](fixtures/override-debug.json)
 
-The workshop opens at `/automations`. It is a simulated Alexa+ experience using a real browser MCP client. Licensing remains pending by the owner's choice; video, actual user trials and final submission still need the owner. Passing experiments cover the declared supported model; the guide documents unknown evidence, finite search, repair limits and open dependency advisories.
+The workshop opens at `/automations`. It is a simulated Alexa+ experience using a real browser MCP client. Licensing remains pending by the owner's choice; video, actual user trials and final submission still need the owner. Passing experiments cover the declared supported model; the guide documents unknown evidence, finite search and repair limits. The October 21 release resolves the previously reported dependency advisories.

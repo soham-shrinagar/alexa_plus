@@ -23,7 +23,10 @@
     "prisma:status": "node scripts/prisma.js migrate status"
   },
   "devDependencies": {
-    "@prisma/client": "6.19.1",
-    "prisma": "6.19.1"
+    "@prisma/client": "6.19.3",
+    "prisma": "6.19.3"
+  },
+  "overrides": {
+    "@prisma/config": { "deepmerge-ts": "8.0.2" }
   }
 }

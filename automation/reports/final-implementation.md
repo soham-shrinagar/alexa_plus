@@ -2,6 +2,8 @@
 
 Updated October 16, 2026. Branch: `new/automation`.
 
+October 21 update: the [focused workshop release](release-2026-10-21.md) adds minimal navigation/progressive disclosure, automated PR checks and dependency/storage improvements. The four dependency advisories noted in the original report are resolved; both audits now pass. Original phase evidence below remains dated to its actual execution.
+
 ## 1. Delivery status
 
 The v1 application, its supported execution model, conversational MCP workflow, persistence, replay, verified guard repair and explicit YAML export are implemented. Phases 1–5 and the engineering/evaluation/release-preparation work in Phase 6 have been committed in steps to this branch. Phase 6's human trials, video, licensing/access decision and final competition submission still require the owner. A hosted service and native Alexa account connection have not been published.
@@ -137,7 +139,7 @@ The output directory must exist for the optional file output. Live commands cons
 
 The supported subset covers explicit state/event triggers, literal state conditions, on/off/light brightness, sequential actions, constant delays and single/restart. It rejects templates, clock/DST triggers, dynamic targets, queued/parallel and arbitrary services. Search varies finite event timings and two tie orders; repair inserts one literal guard. Unknown state, unexercised intent, pending work and exhausted budgets remain unresolved. No complete smart-home twin, exhaustive safety proof or general repair synthesis is claimed.
 
-`npm audit` at both package roots reports **four high-severity entries** through Prisma 6.19.1's config dependencies (`effect` and `deepmerge-ts`, with inherited Prisma/config entries). npm proposes a major Prisma 7 upgrade. This remains unresolved; no forced major upgrade or untested transitive override was applied. Before public production deployment, review the advisories and perform a separately tested dependency migration/remediation. The passing release gate is not a clean security-audit claim.
+The October 16 audit reported four high-severity entries through Prisma 6.19.1's config dependencies. **Resolved October 21:** Prisma/client 6.19.3 and a scoped deepmerge-ts 8.0.2 override pass both audits, client generation, schema validation and Neon verification. The application retains the Prisma 6 API and existing database schema. Read the release report for the tested boundary and rerun audits as new advisories appear.
 
 The local account system lacks production account recovery/OIDC/revocation. Generic OAuth authorization is demo-only and does not provide finished native Alexa linking. MCP sessions/rate buckets are in process memory, so deployment instructions target a single process. Reviewer credential provisioning, secret rotation and hosting configuration belong in the private deployment environment.
 
@@ -152,7 +154,7 @@ The local account system lacks production account recovery/OIDC/revocation. Gene
 | Independent user trials | Recommended, not completed | Ask consenting testers to use the worksheet. Record actual completion/friction; do not invent outcomes. |
 | Realistic household imports | Recommended | Supply your own supported cases and confirm their desired/ordinary outputs. |
 | HTTPS hosting | Optional for local judging | Choose a host/domain and follow deployment.md if you want a public demo. No deployment is claimed. |
-| Dependency advisories | Before production deployment | Review/remediate Prisma-chain advisories with migration/regression verification. |
+| Dependency advisories | Resolved October 21 | Both audits now pass; continue checking future dependency updates. |
 | Stable secrets and key rotation | Before deployment | Configure a private stable JWT secret and rotate previously shared provider keys. |
 | Native Alexa connection | Future gated work | Current FAQ says the toolkit is unavailable to ordinary entrants; use the permitted web simulation. |
 | Broader HA semantics/physical tests | Future product scope | Expand only with independent runtime conformance. |

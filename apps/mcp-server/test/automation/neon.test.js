@@ -7,6 +7,7 @@ import { PrismaAutomationStore } from "../../src/automation/store.js";
 import { AutomationService } from "../../src/automation/service.js";
 import { AutomationIdentity } from "../../src/automation/identity.js";
 import { createTokenService } from "../../src/auth/tokenService.js";
+import { prismaConnectionOptions } from "../../src/repositories/prismaClient.js";
 
 test(
   "Neon restores account identity, source, runs and single-use approval across service instances",
@@ -14,7 +15,7 @@ test(
     skip: process.env.AUTOMATION_NEON_TEST !== "1" || !process.env.DATABASE_URL,
   },
   async () => {
-    const client = new PrismaClient({ log: [] }),
+    const client = new PrismaClient(prismaConnectionOptions()),
       store = new PrismaAutomationStore(client);
     const username = `test_${randomUUID().replaceAll("-", "")}`;
     const password = randomUUID() + randomUUID();
