@@ -1,0 +1,25 @@
+- id: office_occupancy
+  alias: Office light with delayed off
+  mode: restart
+  triggers:
+    - trigger: state
+      entity_id: binary_sensor.office_occupied
+      to: "on"
+  actions:
+    - action: light.turn_on
+      target: {entity_id: light.office}
+      data: {brightness: 160}
+    - delay: {seconds: 30}
+    - action: light.turn_off
+      target: {entity_id: light.office}
+- id: office_manual
+  alias: Keep the office light on during a manual override
+  mode: single
+  triggers:
+    - trigger: state
+      entity_id: input_boolean.office_override
+      to: "on"
+  actions:
+    - action: light.turn_on
+      target: {entity_id: light.office}
+      data: {brightness: 120}

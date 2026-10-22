@@ -58,6 +58,27 @@ test("greedy minimization preserves the same violated expectation", () => {
     minimizeCounterexample(project, snapshot.suite[1].scenario, "respect_hold"),
   );
 });
+
+test("truncated timing exploration cannot authorize a repair review or export", () => {
+  const suite = structuredClone(snapshot.suite);
+  // Repeated occupancy changes add distinct disturbances beyond the default search budget.
+  for (let at = 10; at < 200; at += 10)
+    suite[0].scenario.events.push({
+      kind: "state",
+      entityId: "input_boolean.motion",
+      state: "off",
+      at,
+    });
+  const result = proposeRepairs(project, suite);
+  assert.equal(result.explored.truncated, true);
+  assert.ok(result.candidates.length);
+  assert.ok(
+    result.candidates.every(
+      (candidate) => !candidate.eligible && !candidate.searchComplete,
+    ),
+  );
+  assert.match(result.candidates[0].limitations, /export is blocked/);
+});
 test("a scoped guard fixes counterexamples and retains explicit normal behavior", () => {
   const result = proposeRepairs(project, snapshot.suite);
   assert.equal(result.baseline.passed, false);

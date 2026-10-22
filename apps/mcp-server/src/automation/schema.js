@@ -22,6 +22,17 @@ const primitive = z.union([
   z.boolean(),
   z.null(),
 ]);
+// Zod intentionally omits __proto__ when constructing objects. Reject it before
+// that happens so validation cannot silently widen a literal event filter.
+const eventDataSchema = z.record(
+  z
+    .string()
+    .refine(
+      (key) => key !== "__proto__",
+      "Unsupported event-data key: __proto__",
+    ),
+  primitive,
+);
 export const triggerSchema = z.discriminatedUnion("kind", [
   z
     .object({
@@ -35,7 +46,7 @@ export const triggerSchema = z.discriminatedUnion("kind", [
     .object({
       kind: z.literal("event"),
       eventType: z.string().regex(/^[a-zA-Z0-9_]{1,80}$/),
-      data: z.record(primitive).default({}),
+      data: eventDataSchema.default({}),
     })
     .strict(),
 ]);
@@ -153,7 +164,7 @@ export const inputEventSchema = z.discriminatedUnion("kind", [
       kind: z.literal("event"),
       at: z.number().int().min(0).max(86400000),
       eventType: z.string().regex(/^[a-zA-Z0-9_]{1,80}$/),
-      data: z.record(primitive).default({}),
+      data: eventDataSchema.default({}),
     })
     .strict(),
 ]);

@@ -1,0 +1,55 @@
+{
+  "entities": {
+    "light.porch": { "state": "off", "brightness": 0 },
+    "input_boolean.quiet_mode": { "state": "off" }
+  },
+  "expectations": [
+    {
+      "id": "respect_quiet_mode",
+      "description": "Keep the porch light off while quiet mode is enabled",
+      "confirmed": true,
+      "kind": "invariant",
+      "when": [{ "entityId": "input_boolean.quiet_mode", "state": "on" }],
+      "entityId": "light.porch",
+      "state": "off"
+    }
+  ],
+  "suite": [
+    {
+      "scenario": {
+        "id": "quiet_evening",
+        "events": [
+          {
+            "kind": "state",
+            "entityId": "input_boolean.quiet_mode",
+            "state": "on",
+            "at": 100
+          },
+          {
+            "kind": "event",
+            "eventType": "porch_button_pressed",
+            "data": { "button": "main" },
+            "at": 500
+          }
+        ],
+        "until": 1000
+      },
+      "expected": { "light.porch": "off" }
+    },
+    {
+      "scenario": {
+        "id": "ordinary_button",
+        "events": [
+          {
+            "kind": "event",
+            "eventType": "porch_button_pressed",
+            "data": { "button": "main" },
+            "at": 500
+          }
+        ],
+        "until": 1000
+      },
+      "expected": { "light.porch": "on" }
+    }
+  ]
+}

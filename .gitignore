@@ -32,6 +32,11 @@ playwright-report/
 /prompt.md
 /progress.md
 /notes/
+# Internal navigation, phase diaries and owner-only submission drafts stay local.
+# Public setup, validation and HA reproduction guides stay tracked.
+/automation/README.md
+/automation/submission.md
+/automation/reports/*.md
 
 # Local captures, scratch work, backups, and temporary files
 /screenshots/

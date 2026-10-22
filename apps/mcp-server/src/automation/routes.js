@@ -5,6 +5,7 @@ import {
   publicError,
 } from "./tools.js";
 import { readFileSync } from "node:fs";
+import { RequestBudget } from "../rateLimit.js";
 
 export function installAutomationRoutes(
   app,
@@ -83,20 +84,16 @@ export function installAutomationRoutes(
     tokenService,
     registrationEnabled,
   });
-  const attempts = new Map();
+  const attempts = new RequestBudget({
+    limit: 8,
+    windowMs: 60000,
+    maxKeys: 1000,
+  });
   let pendingPasswords = 0;
   app.post("/automation/session/:action", async (req, res) => {
     if (!["register", "login"].includes(req.params.action))
       return res.status(404).json({ error: { code: "NOT_FOUND" } });
-    const now = Date.now(),
-      bucket = attempts.get(req.ip) ?? { started: now, count: 0 };
-    if (now - bucket.started > 60000)
-      Object.assign(bucket, { started: now, count: 0 });
-    if (attempts.size > 1000)
-      for (const [key, b] of attempts)
-        if (now - b.started > 60000) attempts.delete(key);
-    attempts.set(req.ip, bucket);
-    if (++bucket.count > 8 || pendingPasswords >= 4)
+    if (!attempts.take(req.ip) || pendingPasswords >= 4)
       return res.status(429).json({
         error: {
           code: "LOGIN_RATE_LIMIT",

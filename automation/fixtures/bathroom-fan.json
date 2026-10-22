@@ -1,0 +1,56 @@
+{
+  "entities": {
+    "binary_sensor.bathroom_occupied": { "state": "off" },
+    "switch.bathroom_fan": { "state": "off" },
+    "input_boolean.fan_boost": { "state": "off" }
+  },
+  "expectations": [
+    {
+      "id": "respect_fan_boost",
+      "description": "Keep the bathroom fan on while boost is enabled",
+      "confirmed": true,
+      "kind": "invariant",
+      "when": [{ "entityId": "input_boolean.fan_boost", "state": "on" }],
+      "entityId": "switch.bathroom_fan",
+      "state": "on"
+    }
+  ],
+  "suite": [
+    {
+      "scenario": {
+        "id": "boost_during_timer",
+        "events": [
+          {
+            "kind": "state",
+            "entityId": "binary_sensor.bathroom_occupied",
+            "state": "on",
+            "at": 500
+          },
+          {
+            "kind": "state",
+            "entityId": "input_boolean.fan_boost",
+            "state": "on",
+            "at": 45000
+          }
+        ],
+        "until": 180000
+      },
+      "expected": { "switch.bathroom_fan": "on" }
+    },
+    {
+      "scenario": {
+        "id": "ordinary_fan_cycle",
+        "events": [
+          {
+            "kind": "state",
+            "entityId": "binary_sensor.bathroom_occupied",
+            "state": "on",
+            "at": 500
+          }
+        ],
+        "until": 180000
+      },
+      "expected": { "switch.bathroom_fan": "off" }
+    }
+  ]
+}

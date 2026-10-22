@@ -84,11 +84,11 @@ export function publicError(error) {
   };
 }
 export async function invokeAutomation(service, owner, operation, raw) {
-  const schema = operationSchemas[operation];
-  if (!schema)
+  if (!Object.hasOwn(operationSchemas, operation))
     throw new AppError("UNKNOWN_OPERATION", "Unknown automation operation.", {
       status: 404,
     });
+  const schema = operationSchemas[operation];
   const input = schema.parse(raw);
   return operation === "list"
     ? service.list(owner)

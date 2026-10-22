@@ -25,9 +25,13 @@ import { GeminiProvider } from "./providers/gemini.js";
 import { EnvironmentProvider } from "./providers/environment.js";
 import { PlannerService } from "./services/plannerService.js";
 import { AutomationService } from "./automation/service.js";
-import { MemoryAutomationStore, PrismaAutomationStore } from "./automation/store.js";
+import {
+  MemoryAutomationStore,
+  PrismaAutomationStore,
+} from "./automation/store.js";
 import { registerAutomationTools } from "./automation/tools.js";
 import { installAutomationRoutes } from "./automation/routes.js";
+import { RequestBudget } from "./rateLimit.js";
 
 const publicDirectory = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -69,10 +73,30 @@ export async function createApplication(overrides = {}) {
   app.use(express.urlencoded({ extended: false, limit: "16kb" }));
   app.use(express.json({ limit: "256kb" }));
   const authenticate = createAuthMiddleware({ tokenService, config });
-  const automationStore = overrides.automationStore ?? (config.repositoryMode === "prisma" ? new PrismaAutomationStore(getPrismaClient()) : new MemoryAutomationStore());
-  const automationProvider = overrides.automationProvider ?? (config.geminiApiKey ? new GeminiProvider({ apiKey: config.geminiApiKey, model: config.geminiModel, timeoutMs: config.llmTimeoutMs }) : undefined);
-  const automationService = new AutomationService({ store: automationStore, provider: automationProvider });
-  installAutomationRoutes(app, { service: automationService, tokenService, authenticate, registrationEnabled: config.automationRegistrationEnabled });
+  const automationStore =
+    overrides.automationStore ??
+    (config.repositoryMode === "prisma"
+      ? new PrismaAutomationStore(getPrismaClient())
+      : new MemoryAutomationStore());
+  const automationProvider =
+    overrides.automationProvider ??
+    (config.geminiApiKey
+      ? new GeminiProvider({
+          apiKey: config.geminiApiKey,
+          model: config.geminiModel,
+          timeoutMs: config.llmTimeoutMs,
+        })
+      : undefined);
+  const automationService = new AutomationService({
+    store: automationStore,
+    provider: automationProvider,
+  });
+  installAutomationRoutes(app, {
+    service: automationService,
+    tokenService,
+    authenticate,
+    registrationEnabled: config.automationRegistrationEnabled,
+  });
 
   app.get("/.well-known/oauth-authorization-server", (_req, res) =>
     res.json(authorizationServerMetadata(config)),
@@ -92,13 +116,16 @@ export async function createApplication(overrides = {}) {
         .send(
           "<!doctype html><title>Rehearse account linking</title><main><h1>Account linking required</h1><p>Sign in through the production identity provider to approve this connection.</p></main>",
         );
-    } catch {
-      return res
-        .status(400)
-        .json({
-          error: "invalid_request",
-          error_description: "The authorization request is invalid.",
-        });
+    } catch (error) {
+      const details = error.oauth ?? {
+        error: "invalid_request",
+        error_description: "The authorization request is invalid.",
+        status: 400,
+      };
+      return res.status(details.status).json({
+        error: details.error,
+        error_description: details.error_description,
+      });
     }
   });
   app.post("/oauth/token", (req, res) => {
@@ -112,12 +139,10 @@ export async function createApplication(overrides = {}) {
       };
       if (details.status === 401)
         res.set("WWW-Authenticate", 'Basic realm="oauth"');
-      return res
-        .status(details.status)
-        .json({
-          error: details.error,
-          error_description: details.error_description,
-        });
+      return res.status(details.status).json({
+        error: details.error,
+        error_description: details.error_description,
+      });
     }
   });
   app.post("/demo/session", (req, res) => {
@@ -157,6 +182,7 @@ export async function createApplication(overrides = {}) {
   );
 
   const sessions = new Map();
+  let pendingSessions = 0;
   async function expireSessions() {
     for (const [id, connection] of sessions)
       if (connection.lastUsedAt < Date.now() - config.sessionTtlMs) {
@@ -199,36 +225,57 @@ export async function createApplication(overrides = {}) {
     next();
   });
   app.all("/mcp", authenticate, async (req, res, next) => {
+    let initializing = false;
+    let connection;
     try {
       await expireSessions();
       const sessionId = req.get("mcp-session-id");
-      let connection = sessionId ? sessions.get(sessionId) : undefined;
-      const initializing =
+      connection = sessionId ? sessions.get(sessionId) : undefined;
+      initializing =
         !connection && req.body?.method === "initialize" && !sessionId;
-      if (initializing && sessions.size >= config.maxSessions)
-        return res.status(503).json({ error: "session_capacity_exceeded" });
       const owner = `${req.auth.userId ?? "service"}:${req.auth.clientId ?? "demo"}`;
-      if (initializing) connection = await createConnection(owner);
+      if (initializing) {
+        if (sessions.size + pendingSessions >= config.maxSessions) {
+          initializing = false;
+          return res.status(503).json({ error: "session_capacity_exceeded" });
+        }
+        pendingSessions++;
+        connection = await createConnection(owner);
+      }
       if (!connection)
-        return res
-          .status(400)
-          .json({
-            error: "invalid_session",
-            message: "Initialize first or supply a valid Mcp-Session-Id.",
-          });
+        return res.status(400).json({
+          error: "invalid_session",
+          message: "Initialize first or supply a valid Mcp-Session-Id.",
+        });
       if (connection.owner !== owner)
         return res.status(403).json({ error: "session_owner_mismatch" });
       connection.lastUsedAt = Date.now();
       await connection.transport.handleRequest(req, res, req.body);
-      if (initializing && connection.transport.sessionId)
+      if (
+        initializing &&
+        res.statusCode < 400 &&
+        connection.transport.sessionId
+      )
         sessions.set(connection.transport.sessionId, connection);
     } catch (error) {
       next(error);
+    } finally {
+      if (initializing) {
+        pendingSessions--;
+        if (connection && !sessions.has(connection.transport.sessionId))
+          await connection.server
+            .close()
+            .catch(() => log("session_close_failed"));
+      }
     }
   });
 
-  app.get(["/", "/automations"], (_req, res) => res.sendFile(path.join(publicDirectory, "automation.html")));
-  app.get("/dayboard", (_req, res) => res.sendFile(path.join(publicDirectory, "index.html")));
+  app.get(["/", "/automations"], (_req, res) =>
+    res.sendFile(path.join(publicDirectory, "automation.html")),
+  );
+  app.get("/dayboard", (_req, res) =>
+    res.sendFile(path.join(publicDirectory, "index.html")),
+  );
   app.use(
     express.static(publicDirectory, {
       extensions: ["html"],
@@ -238,17 +285,15 @@ export async function createApplication(overrides = {}) {
   app.use((error, req, res, _next) => {
     const status = [400, 413].includes(error.status) ? error.status : 500;
     log("http_error", { requestId: req.requestId, status });
-    res
-      .status(status)
-      .json({
-        error:
-          status === 400
-            ? "invalid_json"
-            : status === 413
-              ? "payload_too_large"
-              : "internal_error",
-        requestId: req.requestId,
-      });
+    res.status(status).json({
+      error:
+        status === 400
+          ? "invalid_json"
+          : status === 413
+            ? "payload_too_large"
+            : "internal_error",
+      requestId: req.requestId,
+    });
   });
 
   return {
@@ -270,12 +315,18 @@ export async function createApplication(overrides = {}) {
 }
 
 function requestContext(req, res, next) {
-  req.requestId = req.get("x-request-id") ?? crypto.randomUUID();
+  const suppliedId = req.get("x-request-id");
+  req.requestId = /^[a-zA-Z0-9_-]{1,80}$/.test(suppliedId ?? "")
+    ? suppliedId
+    : crypto.randomUUID();
   res.set("x-request-id", req.requestId);
   res.set({
     "X-Content-Type-Options": "nosniff",
     "Referrer-Policy": "no-referrer",
     "Cache-Control": "no-store",
+    "Content-Security-Policy":
+      "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
+    "X-Frame-Options": "DENY",
   });
   next();
 }
@@ -305,16 +356,13 @@ function originGuard(config) {
 }
 
 function rateLimiter(config) {
-  const buckets = new Map();
+  const budget = new RequestBudget({
+    limit: config.requestLimit,
+    windowMs: config.requestWindowMs,
+  });
   return (req, res, next) => {
-    const key = req.ip;
-    const now = Date.now();
-    const bucket = buckets.get(key) ?? { started: now, count: 0 };
-    if (now - bucket.started > config.requestWindowMs)
-      Object.assign(bucket, { started: now, count: 0 });
-    if (++bucket.count > config.requestLimit)
+    if (!budget.take(req.ip))
       return res.status(429).json({ error: "rate_limited" });
-    buckets.set(key, bucket);
     next();
   };
 }

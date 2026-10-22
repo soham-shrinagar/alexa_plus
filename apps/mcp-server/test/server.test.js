@@ -494,7 +494,7 @@ test("OAuth still enforces client credentials and PKCE S256", async () => {
       },
     ];
     const basic = `Basic ${Buffer.from("test-client:test:secret").toString("base64")}`;
-    const verifier = "a-very-long-pkce-verifier-for-test-123456789";
+    const verifier = "a".repeat(64);
     const challenge = crypto
       .createHash("sha256")
       .update(verifier)

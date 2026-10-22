@@ -93,8 +93,8 @@ try {
     elapsed.push(performance.now() - started);
   }
   const sorted = elapsed.sort((a, b) => a - b);
-  const { recentCalls, ...metrics } =
-    instance.telemetry.snapshot("benchmark-offline");
+  const metrics = instance.telemetry.snapshot("benchmark-offline");
+  delete metrics.recentCalls;
   console.log(
     JSON.stringify(
       {

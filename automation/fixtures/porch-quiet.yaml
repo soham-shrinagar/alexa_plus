@@ -1,0 +1,11 @@
+- id: porch_button
+  alias: Porch button light
+  mode: single
+  triggers:
+    - trigger: event
+      event_type: porch_button_pressed
+      event_data: {button: main}
+  actions:
+    - action: light.turn_on
+      target: {entity_id: light.porch}
+      data: {brightness: 180}

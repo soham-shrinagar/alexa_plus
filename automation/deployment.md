@@ -9,7 +9,7 @@ The [official FAQ](https://amazonappdev2026.devpost.com/details/faqs), checked O
 Use Node 22.9 or newer with npm and Git. In a clean directory:
 
 ```powershell
-git clone --branch new/automation --single-branch git@github.com:soham-shrinagar/alexa_plus.git
+git clone https://github.com/soham-shrinagar/alexa_plus.git
 cd alexa_plus
 npm ci
 npm ci --prefix apps/mcp-server
@@ -18,7 +18,7 @@ npm run check:release
 npm --prefix apps/mcp-server start
 ```
 
-Without an environment file the workshop uses temporary memory and direct analysis works offline. Open `http://localhost:3000/automations`, create an account, load the example, confirm intent and import, then Run preflight. The conversation button needs a valid Gemini key; it is not silently simulated. A private repository first needs reviewer access; use HTTPS clone if SSH is not configured. Do not share your private SSH key.
+Use `main`. Without an environment file the workshop binds loopback and uses temporary memory; direct analysis works offline after installation. Open `http://localhost:3000/automations`, create an account, load the example, confirm intent and import, then Run preflight. The conversation button needs a valid Gemini key; it is not silently simulated. A private repository first needs reviewer access.
 
 For Neon and Gemini, copy `.env.example` to `apps/mcp-server/.env`, set `REPOSITORY_MODE=prisma`, `DATABASE_URL`, `GEMINI_API_KEY`, `GEMINI_MODEL`, and a stable `JWT_SECRET`. Keep the other local defaults. Then run:
 

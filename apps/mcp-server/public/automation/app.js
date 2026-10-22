@@ -346,9 +346,19 @@ for (const id of ["example", "welcome-example"])
     work("Loading the guided experiment…", loadExample),
   );
 $("cancel-import").addEventListener("click", () => {
+  if (busy) return;
   $("import-panel").hidden = true;
   screenView();
+  notice(
+    workspace
+      ? "Editor closed. Your saved project is unchanged."
+      : "Import closed. Load an example or import your rules to begin.",
+  );
 });
+for (const id of ["project-name", "yaml", "snapshot"])
+  $(id).addEventListener("input", () => {
+    $("confirm-import").checked = false;
+  });
 for (const [inputId, targetId] of [
   ["yaml-file", "yaml"],
   ["snapshot-file", "snapshot"],

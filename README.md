@@ -1,77 +1,149 @@
 # Rehearse — the automation workshop
 
-A conversational debugger and preflight checker for supported Home Assistant automations. Import your rules and expected behavior, replay a failure, verify a scoped repair, and review its YAML before exporting.
+Rehearse is a conversational debugger and preflight checker for a supported subset of Home Assistant automations. Import your rules, confirm the behavior you expect, replay a failure, and verify a scoped repair before reviewing and downloading its YAML.
 
-The workshop is the primary experience at `/` or `/automations`. The original day/journey planner remains at `/dayboard`; `new/automation` is retained as the development branch. Each implementation phase has its own commit and report.
+The submission is a **web simulation of an Alexa+ conversational experience backed by a real MCP server**. Native Alexa/Echo account linking, physical device control and automatic Home Assistant installation are not implemented.
 
-## Start here
+## Try it from a clean checkout
 
-The [complete overview](automation/overview.md) explains the idea, end-to-end flow, every engine, tools, real providers, setup, evidence and boundaries. The [final implementation report](automation/reports/final-implementation.md) records delivery and verification. Use the [deployment guide](automation/deployment.md) and [submission pack](automation/submission.md) for the final handoff.
+Requirements: Git, Node.js **22.9 or newer**, npm and a browser. Hardware, provider keys and a database are unnecessary for the direct debugging workflow. Installation requires internet access; the installed local engine can run offline.
 
-Use Node 22.9+; keep Windows and WSL dependency directories separate.
-
-```powershell
+```sh
+git clone https://github.com/soham-shrinagar/alexa_plus.git
+cd alexa_plus
 npm ci
 npm ci --prefix apps/mcp-server
-# Configure apps/mcp-server/.env using .env.example.
 npm run prisma:generate
-npm run prisma:migrate
+npm run check:release
 npm --prefix apps/mcp-server start
 ```
 
-Open http://localhost:3000/automations. Create an account, load the guided example, read/confirm its expectations, and import. Run preflight or ask: “Find why motion overrides manual hold and verify a fix without breaking normal behavior.” Follow the causal chain, compare before/after, review the exact patch, then explicitly approve its download.
+Use the default `main` branch. The commands work in PowerShell and a Unix shell. Install dependencies independently in Windows and WSL; do not share their `node_modules`. Prisma generation does not modify a database.
 
-For persistent accounts/projects use DATABASE_URL and REPOSITORY_MODE=prisma. Gemini conversation uses server-side GEMINI_API_KEY and GEMINI_MODEL. Direct preflight, replay and repair work without Gemini. Memory mode is explicitly temporary. Use a stable private JWT_SECRET for deployment; never commit credentials.
+Open [http://localhost:3000/automations](http://localhost:3000/automations). With no environment file, the application binds loopback and uses temporary memory. Accounts and projects disappear when it stops. If a private environment file already exists, its configuration applies; explicitly use `REPOSITORY_MODE=memory` for a temporary evaluation. The server does not silently switch to memory if configured persistence fails.
 
-## What works
+1. Create a local account with a username and a password of at least 12 characters.
+2. Choose **Start with the example**. Read the expectation and test outputs, confirm them, and import.
+3. Choose **Run preflight**. The original example has one failed regression, 26 timing experiments and one eligible guard repair.
+4. Choose **Follow the causal chain**. At 600 virtual milliseconds the delayed motion action turns the lamp off while manual hold is on.
+5. Open **Repair**, then **Replay before & after**. Both replays use identical inputs; the repair also preserves ordinary motion switch-off.
+6. Choose **Review exact patch**, inspect the YAML and regression table, explicitly approve, and download.
 
-- Strict bounded YAML import with source lines and atomic unsupported reports.
-- Pure event execution: literal state/event triggers, conditions, on/off/brightness, delays, single/restart, cancellation and causal traces.
-- Confirmed expectations, explicit normal-output regressions, timing search with visible limits and counterexample reduction.
-- One useful repair vocabulary: insert a literal guard before the offending action; verify it on the same searched disturbances and regression suite.
-- Returning account login, owner-scoped Neon persistence, source versions and concurrency protection.
-- Twelve authenticated automation MCP tools over official SDK Streamable HTTP, protocol 2025-11-25; validated Gemini operation selection.
-- The workshop itself is an actual MCP client: initialization, notification, tool discovery and tool calls.
-- HTML/CSS/modular-JS workshop: conversation, editor, saved projects, state/causal replay, same-input before/after comparison, patch review/download and independent runtime evidence. Optional voice produces an editable transcript.
-- Actual isolated Home Assistant 2024.12.5 observations using virtual helpers, authenticated REST and WebSockets. Actual exported YAML is parsed with HA's YAML semantics and executed in the same testbed.
+Export does not install anything. It releases the exact reviewed YAML once for separate manual review. The original day/journey planner is retained at `/dayboard`.
 
-A passing check covers a finite declared model. Unknown values, pending work and exhausted budgets remain incomplete. Clock/DST triggers, templates, queued/parallel, general repair synthesis, exhaustive cycle proofs and physical-device effects are outside v1. No live-home installation or physical rollback is performed.
+## What the project does
 
-## Verification and reports
+- Atomically imports supported YAML, selected entity state, confirmed expectations and independent regression outputs, with source line mapping.
+- Executes rules on a deterministic virtual clock and records a parent-linked causal trace.
+- Explores finite disturbance timings and two tie orders, displaying incomplete evidence and search limits.
+- Reduces selected failing input sequences and proposes one literal state guard before a responsible action.
+- Rechecks the candidate against declared normal outputs and the same explored disturbances. Truncated search blocks candidate export.
+- Provides saved projects, source versions, investigation history, replay, same-input comparison and exact patch review.
+- Uses real Gemini operation selection when configured. Engine-derived results supply the findings; direct checks remain available without Gemini.
+- Requires current, explicit, expiring, single-use approval for export, bound to owner scope, source, project, tests and candidate.
+- Offers optional voice input as an editable transcript; speech is never automatically submitted.
 
-```powershell
-npm test
-npm run check
-npm run check:release
-npm run automation:evaluate
-npm run test:automation
-npm run prisma:validate
+## Architecture and MCP
+
+```text
+Browser workshop
+  -> authenticated MCP Streamable HTTP (/mcp)
+  -> validated automation service
+  -> YAML contract -> deterministic execution -> bounded search/repair
+  -> replay + regression evidence -> exact review -> approved YAML download
+```
+
+The browser initializes MCP, sends the initialized notification, discovers tools and calls them using protocol **2025-11-25** and the official MCP SDK. Login, the fixed example, the guide and reference evidence use ordinary HTTP.
+
+| Component | Location |
+| --- | --- |
+| Express server, origin/auth/session controls | `apps/mcp-server/src/server.js`, `src/auth/` |
+| Strict schema, YAML import/export and event engine | `apps/mcp-server/src/automation/` |
+| Verification, project workflow and persistence | `src/automation/verification.js`, `service.js`, `store.js` |
+| Workshop and actual browser MCP transport | `apps/mcp-server/public/automation/` |
+| Database schema and additive migrations | `prisma/` |
+| Independent Home Assistant runtime | `automation/testbed/` |
+| Representative inputs and recorded evidence | `automation/fixtures/`, `automation/reports/*.json` |
+
+`src/` entries in the table are relative to `apps/mcp-server/`. The twelve automation tools are `automation.import`, `automation.list`, `automation.get`, `automation.inspect`, `automation.preflight`, `automation.search`, `automation.repair`, `automation.trace`, `automation.compare`, `automation.review`, `automation.export` and `automation.respond`. The authenticated HTTP facade reaches the same service. The original planner's tools remain available.
+
+## Optional conversation and persistence
+
+Copy `.env.example` to `apps/mcp-server/.env` and supply credentials privately. Both features are optional:
+
+| Configuration | Enables |
+| --- | --- |
+| `GEMINI_API_KEY`, `GEMINI_MODEL` | Real conversational operation selection and validated drafts |
+| `REPOSITORY_MODE=prisma`, `DATABASE_URL` | Returning accounts and projects persisted in Neon/PostgreSQL |
+| `JWT_SECRET` | Stable token signing across server restarts; required for production |
+
+For persistence, apply the committed migrations:
+
+```sh
+npm run check:automation-config
+npm run prisma:migrate
 npm run prisma:status
+npm --prefix apps/mcp-server start
+```
+
+Migration applies additive tables; do not substitute reset/drop commands. Passwords are salted scrypt hashes. Tokens expire after one hour. Provider keys stay on the server; a browser tab retains only its short-lived account token in session storage.
+
+The original planner additionally integrates Open-Meteo weather and optional TomTom routing. Neither is required for automation debugging. A selected-state Home Assistant read adapter exists for operator configuration; the workshop does not connect to a household by default.
+
+## Reproduce verification
+
+```sh
+npm run check:release
+npm run test:automation
+npm run automation:evaluate
+npm audit --audit-level=high
+npm audit --prefix apps/mcp-server --audit-level=high
+```
+
+`check:release` runs the full tests, JavaScript syntax checks, Prisma schema validation, the frozen 13-case acceptance corpus and comparison with six recorded HA semantic cases. It removes provider/database settings in child processes and uses memory. Live database tests are skipped by default.
+
+Additional representative office-light, bathroom-fan and porch-button imports exercise real MCP diagnosis, comparison, approved export and reimport. They also check retrigger cancellation, light brightness, literal event filtering and unavailable targets. These are author-written examples, not participant or physical-household data. See [validation and user-trial procedure](automation/validation.md).
+
+For a CLI investigation:
+
+```sh
+node apps/mcp-server/scripts/automationCli.js repair automation/fixtures/office-override.yaml automation/fixtures/office-override.json
+```
+
+Opt-in provider testing consumes real requests:
+
+```sh
 node apps/mcp-server/scripts/automationLlmSmoke.js
 ```
 
-The provider command is opt-in and consumes a live Gemini request. Default tests skip external database checks. See the [overview](automation/overview.md) for the separately enabled, isolated automation Neon test and actual HA reproduction.
+For the isolated account/workspace persistence test in PowerShell:
 
-| Phase | Report |
-| --- | --- |
-| 1: Contract/import and integration feasibility | [Phase 1](automation/reports/phase-1.md) |
-| 2: Execution/replay and HA conformance | [Phase 2](automation/reports/phase-2.md) |
-| 3: Bounded search and verified repair | [Phase 3](automation/reports/phase-3.md) |
-| 4: Conversation/MCP, identity and persistence | [Phase 4](automation/reports/phase-4.md) |
-| 5: Integrated workshop and export verification | [Phase 5](automation/reports/phase-5.md) |
-| 6A: Real browser MCP client | [Phase 6A](automation/reports/phase-6a.md) |
-| 6B: Frozen acceptance set and live LLM comparison | [Phase 6B](automation/reports/phase-6b.md) |
-| 6C: Clean-release and HTTPS configuration | [Phase 6C](automation/reports/phase-6c.md) |
-| Final architecture, delivery and owner actions | [Final report](automation/reports/final-implementation.md) |
+```powershell
+$env:AUTOMATION_NEON_TEST='1'
+node --env-file=apps/mcp-server/.env --test apps/mcp-server/test/automation/neon.test.js
+Remove-Item Env:AUTOMATION_NEON_TEST
+```
 
-Source modules: `apps/mcp-server/src/automation/`; browser modules: `apps/mcp-server/public/automation/`; fixtures, reports and independent testbed: `automation/`.
+Use a permitted test database. This automation test creates and cleans only its own records. The older planner database suite has separate isolation requirements.
 
-## Alexa and submission status
+Real Home Assistant observations were recorded using isolated **Home Assistant Core 2024.12.5** and virtual helpers, including execution of the actual exported YAML. The offline release gate compares against those checked-in observations; it does not launch HA. Follow [testbed reproduction](automation/testbed/README.md) to repeat the independent runtime experiment.
 
-The server and web client use real MCP; the product is a simulated Alexa+ experience. The [official FAQ](https://amazonappdev2026.devpost.com/details/faqs), checked October 16, says toolkit access is unavailable to ordinary entrants and permits a locally runnable repository/demo. Native Alexa linking and the MCP App extension remain future work.
+The frozen acceptance set passes 13/13. A historical ten-case label comparison recorded engine 10/10 and Gemini-only 6/10 in [raw evaluation evidence](automation/reports/phase-6-evaluation.json). This small author-written set is not a representative accuracy benchmark or independent user study.
 
-Phase 6 engineering preparation is delivered: the actual browser MCP workflow, frozen synthetic evaluation, live LLM-only comparison, clean-source release checks and submission materials. The [October 21 release](automation/reports/release-2026-10-21.md) adds the minimal three-view workshop, dependency fixes, Neon connection handling and automated PR checks. Both dependency audits report zero vulnerabilities. On ten shared synthetic cases the engine matched 10/10 labels and Gemini-only 6/10; see the protocol/raw report rather than treating this as representative accuracy. Owner licensing/access review, human trials, video publication and Devpost submission remain. Licensing was explicitly left pending. Optional production deployment requires stable private secrets and hosting configuration. Recheck the [official rules](https://amazonappdev2026.devpost.com/rules) before submitting.
+## Supported scope and limitations
 
-The original planner retains Gemini, TomTom, Open-Meteo, calendar export and simulated recovery at `/dayboard`. Its always-on traffic worker/private notification channel remains explicitly deferred. Weather/traffic are not required for automation debugging.
+Supported: explicit state/event triggers, flat literal event filters, literal state conditions, sequential on/off/light-brightness actions, constant delays, and `single`/`restart` modes. Selected entities are `input_boolean`, `binary_sensor`, `switch` and `light`; binary sensors are input-only.
 
-Private root notes (`overview.md`, `integration.md`, `docs/`) and generated captures remain ignored. Public reproducible guides and reports are intentionally tracked under `automation/`.
+Unsupported inputs reject atomically: templates/Jinja, clock/DST triggers, dynamic/group/area targets, blueprints, `for`, queued/parallel execution and arbitrary services. Imports and runs have explicit size, time and execution budgets. Export is normalized YAML; original comments/layout are not preserved.
+
+`NO_VIOLATION_FOUND` covers one finite declared experiment. Unknown state, missing intent, pending work and exhausted budgets stay visible. Search is not exhaustive; repair is one guard, not general synthesis. Reference HA evidence concerns virtual helpers on the recorded version, not physical timing or compatibility with every release.
+
+Native Alexa linking, physical installation/rollback, production account recovery/OIDC, multi-instance session coordination, broad HA semantics and the original planner's background traffic notifications remain future work. Human trials, licensing/reviewer access, demo video and final competition submission remain owner activities; no results or submission are implied.
+
+## Deployment and reviewer access
+
+[Deployment instructions](automation/deployment.md) cover local review and optional single-instance HTTPS hosting. A public deployment requires private stable secrets, HTTPS, production registration/origin policy and backups. Bind loopback behind a local proxy; set `HOST=0.0.0.0` explicitly only where a managed container requires it. Session/rate state is in process memory. No public deployment is claimed.
+
+Source/reviewer access and the repository-level licensing decision must be resolved by the owner. Confirm the current competition form, deadline and disclosure requirements before submitting. Describe the Alexa+ experience as a simulation and the MCP implementation as real.
+
+For the complete input contract and engine details, read [the technical guide](automation/overview.md). Internal phase diaries and owner planning drafts are excluded from Git; public reproduction guides, fixtures and sanitized runtime evidence remain tracked.

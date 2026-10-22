@@ -49,8 +49,9 @@ export function overviewView(workspace, onReplay, configured) {
     analysis?.baseline.results.filter((r) => !r.passed).length ?? 0;
   const searchFailures = analysis?.explored.counterexamples.length ?? 0;
   const searchIncomplete =
-    analysis?.explored.results.some((r) => r.status === "INCONCLUSIVE") ??
-    false;
+    Boolean(analysis?.explored.truncated) ||
+    (analysis?.explored.results.some((r) => r.status === "INCONCLUSIVE") ??
+      false);
   $("finding-title").textContent = !analysis
     ? "Ready when you are."
     : failures

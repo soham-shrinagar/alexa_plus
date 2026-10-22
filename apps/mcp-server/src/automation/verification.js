@@ -130,6 +130,7 @@ export function search(rawProject, rawScenarios, { limit = 32 } = {}) {
     throw new Error("Search accepts 1..12 seed scenarios and a limit of 1..64");
   const scenarios = rawScenarios.map((s) => validateScenario(project, s));
   const queue = [...scenarios];
+  let truncated = false;
   const boundaries = [
     ...new Set(
       project.rules.flatMap((r) => {
@@ -142,7 +143,7 @@ export function search(rawProject, rawScenarios, { limit = 32 } = {}) {
   ];
   for (const scenario of scenarios) {
     // The first input anchors the user-supplied experiment; perturb subsequent disruptions.
-    for (let i = 1; i < scenario.events.length && queue.length < 256; i++) {
+    for (let i = 1; i < scenario.events.length; i++) {
       const points = new Set([
         scenario.events[i].at - 1,
         scenario.events[i].at + 1,
@@ -150,6 +151,10 @@ export function search(rawProject, rawScenarios, { limit = 32 } = {}) {
       ]);
       for (const at of points)
         if (at >= 0 && at <= scenario.until) {
+          if (queue.length >= 256) {
+            truncated = true;
+            continue;
+          }
           const changed = structuredClone(scenario);
           changed.events[i].at = at;
           queue.push(changed);
@@ -158,7 +163,6 @@ export function search(rawProject, rawScenarios, { limit = 32 } = {}) {
   }
   const seen = new Set(),
     results = [];
-  let truncated = false;
   for (const scenario of queue)
     for (const reverseTies of [false, true]) {
       const key = hash({ scenario, reverseTies });
@@ -283,11 +287,15 @@ export function proposeRepairs(rawProject, rawSuite) {
         verification,
         replayed: replayed.length,
         remaining,
-        eligible: verification.passed && remaining === 0,
+        searchComplete: !explored.truncated,
+        eligible: verification.passed && remaining === 0 && !explored.truncated,
         rationale:
           "Check the declared override immediately before the offending action; retain entry behavior and normal completion.",
         limitations:
-          "Guard stops the remaining action sequence. Confirm this matches your intent; unsupported multi-condition intent requires manual editing.",
+          "Guard stops the remaining action sequence. Confirm this matches your intent; unsupported multi-condition intent requires manual editing." +
+          (explored.truncated
+            ? " Timing search was truncated; export is blocked. Reduce the experiment scope and run preflight again."
+            : ""),
       });
       if (candidates.length >= 8) break;
     }

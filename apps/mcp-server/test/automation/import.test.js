@@ -7,6 +7,7 @@ import {
   toHaRules,
 } from "../../src/automation/importYaml.js";
 import { HomeAssistantReader } from "../../src/automation/haClient.js";
+import { validateScenario } from "../../src/automation/schema.js";
 
 const entities = {
   "input_boolean.motion": { state: "off" },
@@ -33,6 +34,41 @@ test("YAML normalizes with provenance and roundtrips through supported HA syntax
     result.project,
   );
   assert.equal(result.projectHash.length, 64);
+});
+
+test("prototype-named event fields reject atomically rather than disappearing from filters or inputs", () => {
+  const source = stringify([
+    {
+      ...rule,
+      triggers: [
+        {
+          trigger: "event",
+          event_type: "literal_button",
+          event_data: JSON.parse('{"__proto__":"blocked"}'),
+        },
+      ],
+    },
+  ]);
+  const rejected = importAutomations(source, entities);
+  assert.equal(rejected.status, "UNSUPPORTED");
+  assert.equal(rejected.project, null);
+  const project = importAutomations(stringify([rule]), entities).project;
+  assert.throws(
+    () =>
+      validateScenario(project, {
+        id: "literal_input",
+        until: 100,
+        events: [
+          {
+            kind: "event",
+            eventType: "literal_button",
+            at: 0,
+            data: JSON.parse('{"__proto__":"blocked"}'),
+          },
+        ],
+      }),
+    /Unsupported event-data key/,
+  );
 });
 
 test("import uses HA YAML boolean semantics and rejects ambiguous state literals and map keys", () => {

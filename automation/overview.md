@@ -1,18 +1,18 @@
 # Rehearse Automations — complete product and setup guide
 
-October 21 release: the workshop uses three primary views (Investigation, Replay, Repair), with context and runtime evidence under Project details. The intro is removed from open projects and mobile workspaces collapse into a switcher. Prisma/client are now 6.19.3 with a scoped merge-dependency fix; both audits report zero vulnerabilities. Runtime Neon URLs without an explicit timeout get a bounded 20-second connection budget. CI runs the release gate and audits for branch pushes and PRs. See the October 21 release report under automation/reports/.
+The workshop on `main` uses three primary views (Investigation, Replay, Repair), with context and runtime evidence under Project details. Start with the root README for clean installation and the guided example. This document specifies the input contract, execution semantics and reproduction details; [validation.md](validation.md) records the current checks and a human-trial procedure.
 
 ## What we are building
 
 Rehearse is a conversational debugger and preflight checker for a supported subset of Home Assistant automations. A household describes what should happen, imports its rules and selected entity state, and supplies experiments with expected outputs. Rehearse runs those rules, shows the sequence that breaks the expectation, tries a narrowly scoped repair, and checks that normal behavior survives. The owner reviews the exact change before exporting YAML.
 
-The useful differentiator is evidence behind an assistant's recommendation: an executable counterexample, an inspectable causal chain, a repair tested against the same disturbances, and explicit normal-behavior regressions. Natural-language suggestions alone do not establish that an automation works. Winning a competition still depends on a convincing demo, independent evaluation, execution and judging; these five implementation phases do not establish a winning claim.
+The useful differentiator is evidence behind an assistant's recommendation: an executable counterexample, an inspectable causal chain, a repair tested against the same disturbances, and explicit normal-behavior regressions. Natural-language suggestions alone do not establish that an automation works.
 
 The demonstration involves motion switching a lamp on, waiting, then switching it off. A separate manual-hold rule turns it on. At 600 virtual milliseconds the delayed motion rule overrides the requested hold. Rehearse inserts a state guard immediately before off and verifies that ordinary motion still completes normally. This is a reference example; imports accept arbitrary combinations of the supported constructs, within declared size and execution limits.
 
 ## Where the two ideas live
 
-The `new/automation` branch contains this workshop. The original Rehearse day/journey planner remains accessible at `/dayboard`; its code and existing data are retained. The new workshop opens at `/` and `/automations`. The original main branch is preserved independently. Work was committed and pushed separately after phases 1, 2, 3, 4 and 5. Reports are tracked under `automation/reports/`; private root notes and `docs/` remain ignored.
+The workshop is integrated into `main` and opens at `/` and `/automations`. The original Rehearse day/journey planner remains accessible at `/dayboard`; its code and existing data are retained. `new/automation` is a historical development branch. Sanitized machine-readable evidence stays tracked under `automation/reports/*.json`; internal phase diaries, owner drafts and private notes stay local and ignored.
 
 ## End-to-end flow
 
@@ -50,7 +50,7 @@ Statuses: VIOLATION means a confirmed expectation failed; NO_VIOLATION_FOUND cov
 
 `verification.js` constructs potential read/write dependencies and varies later disruption-event timing at constant-delay boundaries and neighboring milliseconds. The first seed input stays fixed. Two input/rule tie orders are tested. Search defaults to 32 experiments, maximum 64, and exposes truncation. It does not enumerate all snapshots, all joint disruptions, all trigger-relative times, or all possible schedules.
 
-Greedy event deletion reduces a counterexample while preserving the same failed expectation, up to 100 attempts. It does not claim global minimality. Repair currently inserts one literal guard before a causally responsible set action when intent has exactly one `when` clause. More complex or unconditional intent requires manual source changes. There are at most eight candidate edits. No expectation relaxation, complete rule deletion or automatic substitution is permitted. Transparent cost is one inserted guard; this limited vocabulary is not general program synthesis.
+Greedy event deletion reduces a counterexample while preserving the same failed expectation, up to 100 attempts. It does not claim global minimality. Repair currently inserts one literal guard before a causally responsible set action when intent has exactly one `when` clause. More complex or unconditional intent requires manual source changes. There are at most eight candidate edits. No expectation relaxation, complete rule deletion or automatic substitution is permitted. Transparent cost is one inserted guard; this limited vocabulary is not general program synthesis. A truncated timing search makes every candidate ineligible for review/export, even when its sampled runs pass; reduce the experiment scope and rerun preflight.
 
 Every regression includes independently declared final-state outputs. The same candidate must preserve these outputs, exercise all declared intent across the suite, and leave no violation/substantive uncertainty in all searched experiments. “Expectation not exercised” in one scenario can be covered by another scenario in that same suite; unknown condition values or unfinished work cannot. Passing counts are not probabilities or universal safety guarantees.
 
@@ -100,7 +100,7 @@ The self-hosted MCP endpoint and browser MCP client are real; the product is a s
 
 ## Setup from a clean checkout
 
-Install Node 22.9+ and clone/check out `new/automation`.
+Install Node 22.9+ and clone/check out `main`. With no environment configuration the server binds `127.0.0.1` and uses memory.
 
 ```powershell
 npm ci
@@ -175,4 +175,4 @@ For real HA reproduction, follow `automation/testbed/README.md`. Prepare cases w
 5. Finish Devpost fields, source/reviewer access, video and required disclosures according to the live rules. Confirm the actual deadline and any track-specific access requirements directly on the competition site.
 6. Keep the always-on traffic worker/private notification setup marked remaining if you revisit the original planner; it is not required for this automation MVP. Production HA writes, physical rollback, current-release compatibility testing, broader repair vocabulary, exhaustive search, OAuth identity provider and MCP App support are future scope.
 
-Read [the final implementation report](reports/final-implementation.md) for complete delivery, architecture, flow, verification and owner checklist; [the submission pack](submission.md) for the description/demo/trial materials; and [deployment instructions](deployment.md) for clean installation and optional HTTPS. Phase 1–6 reports and raw evidence are under `automation/reports/`. Final clean-source checks passed 130 tests with zero failures and two external tests skipped; syntax checked 107 JavaScript files. The acceptance corpus passed 13/13; on the shared first ten cases Gemini-only matched 6/10 and the engine 10/10. This small synthetic result is not a representative benchmark. See the raw report and protocol.
+Use [the root README](../README.md) for submission positioning and a clean run, [validation](validation.md) for current checks and human-trial instructions, and [deployment instructions](deployment.md) for optional HTTPS. Raw historical evidence remains under `automation/reports/*.json`. The frozen acceptance corpus contains 13 cases; its recorded shared-ten comparison matched Gemini-only 6/10 and engine 10/10. This small synthetic result is not a representative benchmark. Internal phase reports and the owner's submission draft remain available locally but are intentionally excluded from Git.

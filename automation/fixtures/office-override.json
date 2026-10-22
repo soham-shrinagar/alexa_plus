@@ -1,0 +1,56 @@
+{
+  "entities": {
+    "binary_sensor.office_occupied": { "state": "off" },
+    "light.office": { "state": "off", "brightness": 0 },
+    "input_boolean.office_override": { "state": "off" }
+  },
+  "expectations": [
+    {
+      "id": "respect_office_override",
+      "description": "Keep the office light on while manual override is enabled",
+      "confirmed": true,
+      "kind": "invariant",
+      "when": [{ "entityId": "input_boolean.office_override", "state": "on" }],
+      "entityId": "light.office",
+      "state": "on"
+    }
+  ],
+  "suite": [
+    {
+      "scenario": {
+        "id": "working_late",
+        "events": [
+          {
+            "kind": "state",
+            "entityId": "binary_sensor.office_occupied",
+            "state": "on",
+            "at": 1700
+          },
+          {
+            "kind": "state",
+            "entityId": "input_boolean.office_override",
+            "state": "on",
+            "at": 14000
+          }
+        ],
+        "until": 65000
+      },
+      "expected": { "light.office": "on" }
+    },
+    {
+      "scenario": {
+        "id": "ordinary_office_visit",
+        "events": [
+          {
+            "kind": "state",
+            "entityId": "binary_sensor.office_occupied",
+            "state": "on",
+            "at": 1700
+          }
+        ],
+        "until": 65000
+      },
+      "expected": { "light.office": "off" }
+    }
+  ]
+}
