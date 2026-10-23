@@ -2,7 +2,7 @@ import { WorkshopApi } from "./api.js";
 import {
   $,
   node,
-  showTab,
+  showTab as renderTab,
   projectsView,
   overviewView,
   candidatesView,
@@ -14,6 +14,21 @@ import {
 import { VoiceController } from "../workspace/voice.js";
 
 const api = new WorkshopApi();
+const tabNames = {
+  overview: "Investigation",
+  replay: "Replay",
+  repair: "Repair",
+  source: "Rules & context",
+  evidence: "Runtime evidence",
+};
+const initialParams = new URLSearchParams(location.search);
+let currentTab = "overview",
+  navigationReady = false,
+  restoringNavigation = false,
+  navigationIndex = 0,
+  currentRoute = null,
+  pendingNavigation = null,
+  importContext = null;
 const mobileLayout = window.matchMedia("(max-width: 760px)");
 const resizeWorkspaceMenu = () => {
   $("workspace-switcher").open = !mobileLayout.matches;
@@ -47,12 +62,136 @@ function notice(text, error = false) {
   $("notice").classList.toggle("error", error);
   $("notice").classList.toggle("progress", busy && !error);
 }
+function showTab(name) {
+  currentTab = Object.hasOwn(tabNames, name) ? name : "overview";
+  renderTab(currentTab);
+  updateNavigation();
+}
+function updateNavigation(replace = false) {
+  const importing = !$("import-panel").hidden;
+  const view = importing
+    ? editing ? "edit" : "import"
+    : workspace ? currentTab : "home";
+  const label = importing
+    ? editing ? "Edit source" : "New project"
+    : tabNames[currentTab];
+  $("workspace-name").textContent =
+    workspace?.name ?? (importing ? "New project" : "Getting started");
+  $("workspace-name").disabled =
+    !workspace || (!importing && currentTab === "overview");
+  $("workspace-name").setAttribute(
+    "aria-label",
+    workspace ? `Open investigation for ${workspace.name}`
+      : importing ? "New project" : "Getting started",
+  );
+  $("current-view").textContent = label;
+  $("current-view").hidden = !workspace;
+  $("view-separator").hidden = !workspace;
+  $("navigate-home").disabled = !workspace && !importing;
+  $("cancel-import").textContent = workspace
+    ? `Back to ${tabNames[currentTab].toLowerCase()}` : "Back to workshop";
+  $("navigate-back").disabled = !navigationIndex && !workspace && !importing;
+  document.title = `${importing || workspace ? label : "Automation workshop"} — Rehearse`;
+  if (!navigationReady || restoringNavigation || pendingNavigation) return;
+  const route = { projectId: workspace?.id ?? null, view, tab: currentTab };
+  if (!replace && JSON.stringify(route) === JSON.stringify(currentRoute)) return;
+  if (!replace) navigationIndex++;
+  currentRoute = route;
+  const url = new URL(location.href);
+  url.searchParams.set("view", view);
+  if (workspace) url.searchParams.set("project", workspace.id);
+  else url.searchParams.delete("project");
+  history[replace ? "replaceState" : "pushState"](
+    { workshop: true, route, index: navigationIndex },
+    "",
+    url,
+  );
+  $("navigate-back").disabled = !navigationIndex && !workspace && !importing;
+}
+function focusView() {
+  const target = !$("import-panel").hidden
+    ? $("project-name") : workspace ? $("project-title") : $("intro");
+  if (!target.matches("input")) target.tabIndex = -1;
+  target.focus({ preventScroll: true });
+  target.scrollIntoView({ block: "nearest" });
+}
+function goHome() {
+  if (busy) return;
+  workspace = null;
+  review = null;
+  replays = [];
+  $("import-panel").hidden = true;
+  projectsView(projects, null, (id) =>
+    work("Restoring your project…", () => loadProject(id)),
+  );
+  screenView();
+  notice(api.token
+    ? "Choose a saved project or start a new experiment."
+    : "Sign in to open your workshop.");
+  focusView();
+}
+function closeImport() {
+  if (busy) return;
+  if (navigationIndex && ["import", "edit"].includes(currentRoute?.view)) {
+    history.back();
+    return;
+  }
+  $("import-panel").hidden = true;
+  screenView();
+  focusView();
+  notice(workspace
+    ? "Editor closed. Your saved project is unchanged."
+    : "Choose a saved project or start a new experiment.");
+}
+function flushNavigation() {
+  if (busy || restoringNavigation || !pendingNavigation) return;
+  const next = pendingNavigation;
+  pendingNavigation = null;
+  void restoreNavigation(next);
+}
+async function restoreNavigation(entry) {
+  if (busy || restoringNavigation) {
+    pendingNavigation = entry;
+    return;
+  }
+  navigationIndex = entry.index;
+  currentRoute = entry.route;
+  restoringNavigation = true;
+  try {
+    await work("Opening your previous view…", async () => {
+      const route = entry.route;
+      if (route.projectId && api.token) {
+        if (workspace?.id !== route.projectId) await loadProject(route.projectId);
+      } else {
+        workspace = null;
+        projectsView(projects, null, (id) =>
+          work("Restoring your project…", () => loadProject(id)),
+        );
+      }
+      $("import-panel").hidden = true;
+      showTab(route.tab ?? route.view);
+      if (["import", "edit"].includes(route.view) && api.token)
+        openImport(route.view === "edit", true);
+      screenView();
+      focusView();
+      notice(["import", "edit"].includes(route.view) && api.token
+        ? "Editor reopened. Your draft is ready to review."
+        : workspace ? `Opened ${workspace.name} · ${tabNames[currentTab]}.`
+          : "Choose a saved project or start a new experiment.");
+    });
+  } finally {
+    restoringNavigation = false;
+    updateNavigation(true);
+    flushNavigation();
+  }
+}
 function screenView() {
   const importing = !$("import-panel").hidden;
   document.body.classList.toggle("has-project", Boolean(workspace));
   $("intro").hidden = Boolean(workspace) || importing;
   $("project-panel").hidden = !workspace || importing;
   $("welcome").hidden = !api.token || Boolean(workspace) || importing;
+  updateNavigation();
 }
 function accountView() {
   $("login-panel").hidden = Boolean(api.token);
@@ -66,6 +205,9 @@ function accountView() {
   screenView();
 }
 function resetSession() {
+  navigationReady = false;
+  navigationIndex = 0;
+  pendingNavigation = null;
   api.setSession(null);
   workspace = null;
   projects = [];
@@ -80,6 +222,8 @@ function resetSession() {
   );
   accountView();
   voice.cancel();
+  navigationReady = true;
+  updateNavigation(true);
 }
 async function work(message, action) {
   if (busy) return;
@@ -97,6 +241,7 @@ async function work(message, action) {
     document.body.classList.remove("working");
     $("workspace").removeAttribute("aria-busy");
     $("notice").classList.remove("progress");
+    flushNavigation();
   }
 }
 function requireLogin() {
@@ -163,8 +308,6 @@ function renderWorkspace() {
   $("workspace-name").textContent = workspace.name;
   $("project-title").textContent = workspace.name;
   $("version").textContent = `PROJECT / VERSION ${workspace.version}`;
-  $("project-description").textContent =
-    "Your rules, your expectations, and an inspectable chain from input to outcome. Every repair must preserve the behavior you declared.";
   overviewView(
     workspace,
     selectReplay,
@@ -198,6 +341,7 @@ function renderWorkspace() {
   screenView();
 }
 async function loadProject(id) {
+  const switchingProject = workspace?.id !== id;
   workspace = await api.call("get", { projectId: id });
   try {
     sessionStorage.setItem("automation-current", id);
@@ -207,10 +351,14 @@ async function loadProject(id) {
   $("import-panel").hidden = true;
   editing = false;
   $("conversation-detail").hidden = true;
+  if (switchingProject) {
+    currentTab = "overview";
+    renderTab(currentTab);
+  }
   renderWorkspace();
   notice(`Opened ${workspace.name}, version ${workspace.version}.`);
 }
-function openImport(update = false) {
+function openImport(update = false, preserveDraft = false) {
   if (!requireLogin()) return;
   review = null;
   $("review-panel").hidden = true;
@@ -219,6 +367,9 @@ function openImport(update = false) {
   editing = update;
   $("import-panel").hidden = false;
   screenView();
+  const context = update ? `${workspace?.id}:${workspace?.version}` : "new";
+  if (preserveDraft && importContext === context) return;
+  importContext = context;
   $("confirm-import").checked = false;
   $("import-issues").hidden = true;
   $("import-submit").textContent = update
@@ -345,15 +496,32 @@ for (const id of ["example", "welcome-example"])
   $(id).addEventListener("click", () =>
     work("Loading the guided experiment…", loadExample),
   );
-$("cancel-import").addEventListener("click", () => {
-  if (busy) return;
+$("cancel-import").addEventListener("click", closeImport);
+$("navigate-home").addEventListener("click", goHome);
+$("workshop-home").addEventListener("click", (event) => {
+  if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+  event.preventDefault();
+  goHome();
+});
+$("workspace-name").addEventListener("click", () => {
+  if (busy || !workspace) return;
   $("import-panel").hidden = true;
+  showTab("overview");
   screenView();
-  notice(
-    workspace
-      ? "Editor closed. Your saved project is unchanged."
-      : "Import closed. Load an example or import your rules to begin.",
-  );
+  focusView();
+});
+$("navigate-back").addEventListener("click", () => {
+  if (busy) return;
+  if (navigationIndex) history.back();
+  else if (!$("import-panel").hidden) closeImport();
+  else if (currentTab !== "overview") {
+    showTab("overview");
+    focusView();
+  }
+  else goHome();
+});
+window.addEventListener("popstate", (event) => {
+  if (event.state?.workshop) void restoreNavigation(event.state);
 });
 for (const id of ["project-name", "yaml", "snapshot"])
   $(id).addEventListener("input", () => {
@@ -521,7 +689,9 @@ $("export").addEventListener("click", () =>
 );
 document
   .querySelectorAll("[data-tab]")
-  .forEach((b) => b.addEventListener("click", () => showTab(b.dataset.tab)));
+  .forEach((b) => b.addEventListener("click", () => {
+    if (!busy) showTab(b.dataset.tab);
+  }));
 $("run-select").addEventListener("change", () => {
   replayIndex = -1;
   drawReplay();
@@ -565,9 +735,11 @@ await work("Opening the workshop…", async () => {
     } catch {
       /* Session-only browser mode. */
     }
-    if (projects.length)
+    const requestedProject = initialParams.get("project");
+    if (projects.length && initialParams.get("view") !== "home")
       await loadProject(
-        projects.some((p) => p.id === id) ? id : projects[0].id,
+        projects.some((p) => p.id === requestedProject) ? requestedProject
+          : projects.some((p) => p.id === id) ? id : projects[0].id,
       );
     else notice("Account ready. Import an experiment to begin.");
   } else
@@ -575,3 +747,8 @@ await work("Opening the workshop…", async () => {
       "Sign in to keep your experiments, then start with the guided example or your own rules.",
     );
 });
+if (workspace) showTab(initialParams.get("view"));
+if (api.token && ["import", "edit"].includes(initialParams.get("view")))
+  openImport(initialParams.get("view") === "edit" && Boolean(workspace));
+navigationReady = true;
+updateNavigation(true);

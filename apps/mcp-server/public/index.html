@@ -13,7 +13,7 @@
   <body>
     <div class="app-shell">
       <aside class="sidebar">
-        <a class="brand" href="/"
+        <a class="brand" href="/dayboard"
           ><span class="brand-icon" aria-hidden="true">r<span>↗</span></span
           ><span>rehearse<small>The dayboard</small></span></a
         >
@@ -52,8 +52,11 @@
       </aside>
       <main>
         <header class="topbar">
-          <div class="breadcrumb">
-            Workspace <span>/</span> <b id="view-name">Plan</b>
+          <div class="dayboard-navigation">
+            <button id="navigate-back" class="button secondary" type="button" disabled><span aria-hidden="true">←</span> Back</button>
+            <nav class="breadcrumb" aria-label="Breadcrumb">
+              <a href="/automations">Workshop</a><span aria-hidden="true">/</span><a href="/dayboard">Dayboard</a><span aria-hidden="true">/</span><b id="view-name" aria-current="page">Plan</b>
+            </nav>
           </div>
           <div class="topbar-meta">
             <span id="today"></span

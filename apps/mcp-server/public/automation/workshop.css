@@ -124,6 +124,45 @@ main {
 .topbar b {
   font-weight: 500;
 }
+.navigation,
+.breadcrumbs {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+.navigation {
+  gap: 18px;
+}
+.breadcrumbs {
+  flex-wrap: wrap;
+  gap: 4px 0;
+  overflow-wrap: anywhere;
+}
+.breadcrumbs .text-button {
+  padding: 6px 0;
+  text-align: left;
+}
+.breadcrumbs .text-button:disabled {
+  opacity: 1;
+  cursor: default;
+}
+.breadcrumbs .text-button:disabled:hover {
+  text-decoration: none;
+}
+#workspace-name,
+#current-view {
+  color: var(--ink);
+}
+.back-button {
+  flex-shrink: 0;
+  min-height: 38px;
+  padding: 8px 12px;
+  gap: 7px;
+  font-size: 11px;
+}
+.account {
+  flex-shrink: 0;
+}
 .text-button {
   color: var(--muted);
   text-decoration: none;
@@ -219,43 +258,12 @@ main {
   gap: 30px;
   margin-bottom: 26px;
   position: relative;
-  overflow: visible;
+  overflow-x: auto;
+  scrollbar-width: thin;
 }
-.project-details {
-  margin-left: auto;
-  padding: 0;
-  border: 0;
-  position: relative;
-}
-.project-details summary {
-  list-style: none;
-  white-space: nowrap;
-  font-weight: 400;
-  padding: 15px 0;
-}
-.project-details summary::-webkit-details-marker {
-  display: none;
-}
-.project-details[open] > summary {
-  margin: 0;
-}
-.details-menu {
-  position: absolute;
-  right: 0;
-  top: 100%;
-  z-index: 3;
-  min-width: 180px;
-  padding: 8px 16px;
-  background: var(--paper);
-  border: 1px solid var(--line);
-  border-radius: 9px;
-  box-shadow: 0 12px 30px #203b3810;
-}
-.tabs .details-menu button {
-  display: block;
-  width: 100%;
-  text-align: left;
-  padding: 12px 0;
+.tabs > button {
+  flex-shrink: 0;
+  min-height: 44px;
 }
 .metrics {
   display: flex;
@@ -542,6 +550,20 @@ main {
     min-height: 64px;
     padding: 10px 0;
     gap: 10px;
+    flex-wrap: wrap;
+  }
+  .navigation {
+    flex: 1 1 100%;
+    gap: 12px;
+  }
+  .account {
+    margin-left: auto;
+  }
+  .breadcrumbs {
+    font-size: 10px;
+  }
+  .breadcrumbs .text-button {
+    font-size: inherit;
   }
   .account {
     gap: 6px;
@@ -573,16 +595,11 @@ main {
     font-size: 28px;
   }
   .tabs {
-    gap: 20px;
+    flex-wrap: wrap;
+    gap: 0 20px;
   }
   .tabs button {
     font-size: 11px;
-  }
-  .project-details summary {
-    font-size: 10px;
-  }
-  .project-details summary span {
-    display: none;
   }
   .metrics {
     gap: 12px 18px;

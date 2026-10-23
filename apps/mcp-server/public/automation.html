@@ -15,7 +15,7 @@
     <a class="skip" href="#workspace">Skip to workspace</a>
     <div class="shell">
       <aside class="rail">
-        <a class="brand" href="/automations"
+        <a class="brand" id="workshop-home" href="/automations"
           ><span class="mark" aria-hidden="true">r↗</span
           ><span>rehearse<small>The automation workshop</small></span></a
         >
@@ -43,10 +43,18 @@
       </aside>
       <main id="workspace">
         <header class="topbar">
-          <span
-            >Workshop <span class="slash">/</span>
-            <b id="workspace-name">Getting started</b></span
-          >
+          <div class="navigation">
+            <button id="navigate-back" class="button secondary back-button" type="button" disabled>
+              <span aria-hidden="true">←</span> Back
+            </button>
+            <nav class="breadcrumbs" aria-label="Breadcrumb">
+              <button id="navigate-home" class="text-button" type="button">Workshop</button>
+              <span class="slash" aria-hidden="true">/</span>
+              <button id="workspace-name" class="text-button" type="button" disabled>Getting started</button>
+              <span id="view-separator" class="slash" aria-hidden="true" hidden>/</span>
+              <span id="current-view" aria-current="page" hidden></span>
+            </nav>
+          </div>
           <div class="account">
             <span id="account-name">No account</span
             ><button id="sign-out" class="text-button" hidden>Sign out</button>
@@ -176,7 +184,7 @@
                 type="button"
                 class="button secondary"
               >
-                Close editor
+              Back to workshop
               </button>
             </div>
             <div id="import-issues" class="issues" hidden></div>
@@ -197,19 +205,8 @@
               Investigation</button
             ><button data-tab="replay">Replay</button
             ><button data-tab="repair">Repair</button>
-            <details id="project-details" class="project-details">
-              <summary>
-                Project details <span aria-hidden="true">⌄</span>
-              </summary>
-              <div class="details-menu">
-                <button data-tab="source" aria-label="Rules and context">
-                  Rules & context
-                </button>
-                <button data-tab="evidence" aria-label="Runtime evidence">
-                  Runtime evidence
-                </button>
-              </div>
-            </details>
+            <button data-tab="source" aria-label="Rules and context">Rules & context</button>
+            <button data-tab="evidence" aria-label="Runtime evidence">Runtime evidence</button>
           </nav>
           <section id="tab-overview" class="tab-panel">
             <div id="metrics" class="metrics"></div>

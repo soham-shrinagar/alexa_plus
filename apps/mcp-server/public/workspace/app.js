@@ -113,6 +113,13 @@ $("#today").textContent = new Intl.DateTimeFormat("en", {
 }).format(new Date());
 restoreContext();
 showPage(new URLSearchParams(location.search).get("view") ?? "plan");
+$("#navigate-back").addEventListener("click", () => {
+  if (history.state?.dayboard && history.state.index > 0) history.back();
+  else void navigate("plan");
+});
+window.addEventListener("popstate", () => {
+  void navigate(new URLSearchParams(location.search).get("view") ?? "plan", { restore: true });
+});
 document
   .querySelectorAll("[data-view]")
   .forEach((button) =>
@@ -1124,8 +1131,8 @@ function review(title, message, confirmLabel = "Confirm") {
     reviewWaitMs += performance.now() - started;
   });
 }
-async function navigate(view) {
-  showPage(view);
+async function navigate(view, options) {
+  showPage(view, options);
   if (!state.connected || state.busy) return;
   if (view === "rehearse" && state.activation) {
     $("#stress-runtime").checked = true;

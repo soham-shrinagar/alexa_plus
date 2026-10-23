@@ -28,7 +28,9 @@ export const pageCopy = {
     "Inspect providers, freshness and the actual tool surface behind this experience.",
   ],
 };
-export function showPage(view) {
+let navigationStarted = false;
+let navigationIndex = 0;
+export function showPage(view, { restore = false } = {}) {
   if (!pageCopy[view]) view = "plan";
   state.view = view;
   document
@@ -52,7 +54,18 @@ export function showPage(view) {
     household: "Household",
     connections: "Connections",
   }[view];
-  history.replaceState(null, "", `/?view=${view}`);
+  const url = new URL(location.href);
+  const changed = url.searchParams.get("view") !== view;
+  url.searchParams.set("view", view);
+  if (restore) navigationIndex = history.state?.dayboard ? history.state.index : 0;
+  else if (navigationStarted && changed) navigationIndex++;
+  if (!restore)
+    history[navigationStarted && changed ? "pushState" : "replaceState"](
+      { dayboard: true, index: navigationIndex }, "", url,
+    );
+  navigationStarted = true;
+  $("#navigate-back").disabled = !navigationIndex && view === "plan";
+  document.title = `${$("#view-name").textContent} — Rehearse dayboard`;
 }
 function timelineItem(time, label, detail, depart = false) {
   const row = element("li");

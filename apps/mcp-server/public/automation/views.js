@@ -16,7 +16,6 @@ const button = (text, callback, secondary = true) => {
   return b;
 };
 export function showTab(name) {
-  $("project-details").open = false;
   document.querySelectorAll("[data-tab]").forEach((b) => {
     const active = b.dataset.tab === name;
     b.classList.toggle("active", active);
@@ -36,6 +35,7 @@ export function projectsView(projects, currentId, onSelect) {
   for (const project of projects) {
     const b = button("", () => onSelect(project.id));
     b.className = `project-link${project.id === currentId ? " selected" : ""}`;
+    if (project.id === currentId) b.setAttribute("aria-current", "page");
     b.append(
       node("span", project.name),
       node("small", `Version ${project.version}`),
