@@ -197,10 +197,6 @@ function accountView() {
   $("login-panel").hidden = Boolean(api.token);
   $("sign-out").hidden = !api.token;
   $("account-name").textContent = api.username ?? "No account";
-  $("storage-note").textContent =
-    health?.automationStorage === "prisma"
-      ? "Your account and projects are stored in Neon. Sign in again to restore them on another session."
-      : "This server uses temporary memory. Accounts and projects are lost when it restarts. Configure Neon for persistence.";
   $("register").hidden = health?.automationRegistrationEnabled === false;
   screenView();
 }
@@ -724,8 +720,6 @@ window.addEventListener("pagehide", () => voice.cancel());
 await work("Opening the workshop…", async () => {
   health = await api.request("/health");
   accountView();
-  $("connection").textContent =
-    `${health.automationStorage === "prisma" ? "Neon storage" : "Temporary memory"} · Workshop uses MCP`;
   evidence = await api.request("/automation/evidence");
   if (api.token) {
     await refreshProjects();
