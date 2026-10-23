@@ -4,6 +4,8 @@ Rehearse is a conversational debugger and preflight checker for a supported subs
 
 The submission is a **web simulation of an Alexa+ conversational experience backed by a real MCP server**. Native Alexa/Echo account linking, physical device control and automatic Home Assistant installation are not implemented.
 
+**Live workshop:** [rehearse-workshop.onrender.com](https://rehearse-workshop.onrender.com). Create an account to try the guided example. The Render free service sleeps when idle, so the first visit can take about a minute; accounts and projects are stored in Neon.
+
 ## Try it from a clean checkout
 
 Requirements: Git, Node.js **22.9 or newer**, npm and a browser. Hardware, provider keys and a database are unnecessary for the direct debugging workflow. Installation requires internet access; the installed local engine can run offline.
@@ -142,7 +144,7 @@ Native Alexa linking, physical installation/rollback, production account recover
 
 ## Deployment and reviewer access
 
-[Deployment instructions](automation/deployment.md) cover local review and optional single-instance HTTPS hosting. A public deployment requires private stable secrets, HTTPS, production registration/origin policy and backups. Bind loopback behind a local proxy; set `HOST=0.0.0.0` explicitly only where a managed container requires it. Session/rate state is in process memory. No public deployment is claimed.
+[Deployment instructions](automation/deployment.md) cover local review and single-instance HTTPS hosting. The live workshop uses Render's free web service with Neon persistence and private server-side Gemini credentials. The root `render.yaml` reproduces its infrastructure. Bind loopback behind a local proxy; set `HOST=0.0.0.0` explicitly where a managed container requires it. Session/rate state is in process memory.
 
 The public repository is [MIT licensed](LICENSE); judges can clone the default `main` branch. The [official FAQ](https://amazonappdev2026.devpost.com/details/faqs) confirms that a locally runnable repository plus demo video is sufficient for the Alexa+ track; a hosted service is optional. Describe the Alexa+ experience as a simulation and the MCP implementation as real. See [developer feedback and friction log](automation/feedback.md) for implementation observations.
 

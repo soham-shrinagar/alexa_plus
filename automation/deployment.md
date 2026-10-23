@@ -45,7 +45,7 @@ Free instances sleep after 15 minutes without traffic and take about a minute to
 
 Choose a Node host or VM that supports a long-running Node process and preserves incoming Host headers. This app holds MCP transports, request budgets and demo OAuth authorization codes in process memory: use one instance, or add tested session affinity/shared stores before horizontal scaling. Do not put the stateful server into per-request serverless execution without an adaptation.
 
-1. Provision your host/domain and TLS termination in its dashboard. No host or paid resource has been provisioned by this implementation.
+1. Provision your host/domain and TLS termination in its dashboard. The existing Render deployment uses the free web service defined above and its included HTTPS domain.
 2. Deploy this branch with root `npm ci`, server `npm ci --prefix apps/mcp-server`, and `npm run prisma:generate` as build steps. Run `npm run prisma:migrate` once as a release job with the private Neon URL. Start from the root using `npm --prefix apps/mcp-server start`.
 3. Configure `DEMO_MODE=false`, `AUTH_REQUIRED=true`, `REPOSITORY_MODE=prisma`, `PUBLIC_URL=https://YOUR_DOMAIN`, `DATABASE_URL`, a random private `JWT_SECRET` of at least 32 characters, and Gemini credentials. Use the platform's PORT. Set `ALLOWED_ORIGINS` to the exact HTTPS origin or leave it empty to permit only PUBLIC_URL's origin. No URL paths, usernames, passwords, query or fragment belong in PUBLIC_URL.
 4. Set `AUTOMATION_REGISTRATION_ENABLED=true` only while creating reviewer accounts, then set false and restart. Returning login still works. Supply reviewer credentials privately in testing instructions, never in Git.
@@ -54,7 +54,7 @@ Choose a Node host or VM that supports a long-running Node process and preserves
 7. Verify registration policy, returning login after restart, real Gemini request, preflight, replay, one approved export, rejection of reuse, and rejection of an unauthenticated `/mcp` call. Inspect browser Network for initialize, initialized, tools/list, tools/call.
 8. Keep secrets in the hosting secret store, rotate previously shared keys before public use, configure database backups, and limit reviewer traffic. The current request limiter sees a reverse proxy as one IP; its budget is shared behind that proxy. For a small controlled demo this is acceptable; production scale requires a reviewed trusted-proxy policy and distributed rate limits. Browser login has an additional eight-attempt/minute bucket. The October 21 dependency release passes both audits; rerun audits on later installs. Runtime Neon URLs without a connect_timeout get a 20-second connection budget; explicit operator values and CLI URLs are preserved.
 
-An HTTPS deployment is not performed or claimed here. Platform selection, domain ownership and any billing remain owner decisions. Docker is not required; a container build has not been validated in this environment.
+The workshop is deployed at [rehearse-workshop.onrender.com](https://rehearse-workshop.onrender.com), using the free Render web service and the existing Neon database. Future plan upgrades, custom domains and billing remain owner decisions. Docker is not required; a container build has not been validated in this environment.
 
 ## MCP and identity boundary
 
