@@ -2,7 +2,7 @@
 
 ## Recommended submission route
 
-The [official FAQ](https://amazonappdev2026.devpost.com/details/faqs), checked October 16, 2026, permits a locally runnable repository and demo. It says the Alexa+ toolkit is gated to selected partners and unavailable to hackathon participants. Use the working web simulation and real MCP endpoint for this submission. Hosting is optional. Do not spend the remaining deadline waiting for toolkit credentials.
+The [official FAQ](https://amazonappdev2026.devpost.com/details/faqs), rechecked October 23, 2026, permits a locally runnable repository and demo. It says the Alexa+ toolkit is gated to selected partners and unavailable to hackathon participants. Use the working web simulation and real MCP endpoint for this submission. Hosting is optional. The public repository includes an MIT license.
 
 ## Clean local setup
 

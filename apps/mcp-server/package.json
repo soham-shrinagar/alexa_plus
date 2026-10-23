@@ -1,7 +1,7 @@
 {
   "name": "rehearse-mcp-server",
   "version": "1.0.0",
-  "description": "A Streamable HTTP MCP server that compiles, simulates, repairs, and safely activates household routines.",
+  "description": "Rehearse automation workshop: a conversational Home Assistant debugger with deterministic replay, bounded repair verification and reviewed YAML export over Streamable HTTP MCP.",
   "main": "src/server.js",
   "scripts": {
     "test": "node --test",
@@ -11,7 +11,7 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.32.1",
     "@prisma/client": "6.19.3",

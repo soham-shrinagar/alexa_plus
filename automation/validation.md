@@ -1,12 +1,12 @@
 # Validation and reproducibility
 
-Reviewed October 22, 2026. This document separates executable checks, browser observations, historical reference evidence and participant testing. Start with [the README](../README.md) for clean installation.
+Reviewed October 23, 2026. This document separates executable checks, browser observations, historical reference evidence and participant testing. Start with [the README](../README.md) for clean installation.
 
 ## Automated release gate
 
 Run `npm run check:release` from the repository root. It uses memory and clears provider/database settings in its child processes.
 
-| Check | October 22 result |
+| Check | October 23 result |
 | --- | --- |
 | Full suite | 144 tests: 142 passed, zero failed, two optional database tests skipped |
 | JavaScript syntax | 111 files checked |
@@ -18,6 +18,8 @@ Run `npm run check:release` from the repository root. It uses memory and clears 
 | Separately enabled Neon test | Returning identity, persistence, ownership and concurrent one-use export passed; its own records were cleaned |
 
 Live checks are separate because they need private credentials and can consume provider quota. The default gate does not establish current live provider availability. Reproduce the opt-in checks using the commands in the README. The existing frozen corpus and its hash remain unchanged; new household fixtures supplement it.
+
+The final October 23 review updated transitive `ip-address` from 10.7.3 to 10.7.4 for [GHSA-rxp7-6hxx-x8q5](https://github.com/advisories/GHSA-rxp7-6hxx-x8q5), then repeated the release gate and both audits. The live Gemini smoke selected real preflight and reported one failed regression, 26 timing experiments and one eligible repair. The isolated Neon identity/persistence/concurrent single-use-export test passed and removed its own synthetic records. The repository now includes the owner-approved [MIT license](../LICENSE) and a [developer feedback/friction log](feedback.md).
 
 ## Representative supported automations
 

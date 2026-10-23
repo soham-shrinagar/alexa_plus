@@ -138,12 +138,12 @@ Unsupported inputs reject atomically: templates/Jinja, clock/DST triggers, dynam
 
 `NO_VIOLATION_FOUND` covers one finite declared experiment. Unknown state, missing intent, pending work and exhausted budgets stay visible. Search is not exhaustive; repair is one guard, not general synthesis. Reference HA evidence concerns virtual helpers on the recorded version, not physical timing or compatibility with every release.
 
-Native Alexa linking, physical installation/rollback, production account recovery/OIDC, multi-instance session coordination, broad HA semantics and the original planner's background traffic notifications remain future work. Human trials, licensing/reviewer access, demo video and final competition submission remain owner activities; no results or submission are implied.
+Native Alexa linking, physical installation/rollback, production account recovery/OIDC, multi-instance session coordination, broad HA semantics and the original planner's background traffic notifications remain future work. Independent human trials, recording/publishing the demo video and final competition submission remain owner activities; no results or submission are implied.
 
 ## Deployment and reviewer access
 
 [Deployment instructions](automation/deployment.md) cover local review and optional single-instance HTTPS hosting. A public deployment requires private stable secrets, HTTPS, production registration/origin policy and backups. Bind loopback behind a local proxy; set `HOST=0.0.0.0` explicitly only where a managed container requires it. Session/rate state is in process memory. No public deployment is claimed.
 
-Source/reviewer access and the repository-level licensing decision must be resolved by the owner. Confirm the current competition form, deadline and disclosure requirements before submitting. Describe the Alexa+ experience as a simulation and the MCP implementation as real.
+The public repository is [MIT licensed](LICENSE); judges can clone the default `main` branch. The [official FAQ](https://amazonappdev2026.devpost.com/details/faqs) confirms that a locally runnable repository plus demo video is sufficient for the Alexa+ track; a hosted service is optional. Describe the Alexa+ experience as a simulation and the MCP implementation as real. See [developer feedback and friction log](automation/feedback.md) for implementation observations.
 
-For the complete input contract and engine details, read [the technical guide](automation/overview.md). Internal phase diaries and owner planning drafts are excluded from Git; public reproduction guides, fixtures and sanitized runtime evidence remain tracked.
+For a plain-language explanation and the full user flow, read [the project walkthrough](automation/walkthrough.md). For the complete input contract and engine details, read [the technical guide](automation/overview.md). [Final release checks](automation/release-readiness.md) record the submission review. Internal phase diaries and owner planning drafts are excluded from Git; public reproduction guides, fixtures and sanitized runtime evidence remain tracked.

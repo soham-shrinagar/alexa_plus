@@ -1,6 +1,7 @@
 {
   "name": "rehearse-alexa-plus",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "engines": { "node": ">=22.9.0" },
   "scripts": {
