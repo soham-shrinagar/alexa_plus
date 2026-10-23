@@ -3,7 +3,7 @@ import crypto from "node:crypto";
 export function loadConfig(env = process.env) {
   const demoMode = env.DEMO_MODE !== "false";
   const port = integer(env.PORT, 3000, "PORT", 0, 65535);
-  const publicUrl = (env.PUBLIC_URL || `http://localhost:${port}`).replace(
+  const publicUrl = (env.PUBLIC_URL || env.RENDER_EXTERNAL_URL || `http://localhost:${port}`).replace(
     /\/$/,
     "",
   );

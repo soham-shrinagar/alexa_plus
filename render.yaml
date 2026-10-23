@@ -1,0 +1,31 @@
+services:
+  - type: web
+    name: rehearse-workshop
+    runtime: node
+    plan: free
+    region: singapore
+    branch: main
+    buildCommand: npm ci --include=dev && npm ci --prefix apps/mcp-server --include=dev && npm run prisma:generate
+    startCommand: npm run prisma:migrate && npm --prefix apps/mcp-server start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: HOST
+        value: 0.0.0.0
+      - key: DEMO_MODE
+        value: "false"
+      - key: AUTH_REQUIRED
+        value: "true"
+      - key: REPOSITORY_MODE
+        value: prisma
+      - key: AUTOMATION_REGISTRATION_ENABLED
+        value: "true"
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-3.5-flash-lite

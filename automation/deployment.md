@@ -33,6 +33,16 @@ The migrate command applies committed additive migrations. Do not run reset or d
 
 ## Optional single-instance HTTPS hosting
 
+### Render free web service
+
+The root `render.yaml` defines a single free Node web service in Singapore, built from `main`. Create a Blueprint from this repository in Render and supply `DATABASE_URL` and `GEMINI_API_KEY` privately. The Blueprint generates a stable signing secret, enables authenticated workshop account registration, and uses Neon for persistence. Adjust `GEMINI_MODEL` privately if your key uses another model. No secrets belong in the Blueprint or Git.
+
+Render provides `RENDER_EXTERNAL_URL`, which the application uses as its public origin unless `PUBLIC_URL` is explicitly set. The service binds `0.0.0.0` on Render's assigned `PORT`. The build installs both dependency sets and generates Prisma. Startup applies the committed additive migrations before starting the server; free services do not support a separate pre-deploy command. The health check uses `/health`.
+
+Free instances sleep after 15 minutes without traffic and take about a minute to wake. Their local files and in-process MCP sessions do not survive restarts, but accounts and saved projects remain in Neon. Sign in again after an expired session. Keep the service on the Free instance type; the Blueprint does not provision a paid database or disk. Registration can be disabled in Render after reviewer accounts are created.
+
+### Other hosts
+
 Choose a Node host or VM that supports a long-running Node process and preserves incoming Host headers. This app holds MCP transports, request budgets and demo OAuth authorization codes in process memory: use one instance, or add tested session affinity/shared stores before horizontal scaling. Do not put the stateful server into per-request serverless execution without an adaptation.
 
 1. Provision your host/domain and TLS termination in its dashboard. No host or paid resource has been provisioned by this implementation.

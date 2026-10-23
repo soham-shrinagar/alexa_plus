@@ -16,3 +16,18 @@ test("production requires HTTPS, strong secrets, and authentication", () => {
   assert.throws(() => loadConfig({ ...env, JWT_SECRET: "" }));
   assert.throws(() => loadConfig({ ...env, PUBLIC_URL: "http://rehearse.example" }));
 });
+
+test("Render's assigned URL supplies the public origin unless explicitly overridden", () => {
+  const env = {
+    DEMO_MODE: "false",
+    DATABASE_URL: "postgresql://placeholder",
+    JWT_SECRET: "a".repeat(32),
+    RENDER_EXTERNAL_URL: "https://rehearse-workshop.onrender.com",
+  };
+  assert.equal(loadConfig(env).publicUrl, env.RENDER_EXTERNAL_URL);
+  assert.equal(
+    loadConfig({ ...env, PUBLIC_URL: "https://workshop.example/" }).publicUrl,
+    "https://workshop.example",
+  );
+  assert.throws(() => loadConfig({ ...env, RENDER_EXTERNAL_URL: "http://unsafe.example" }));
+});
